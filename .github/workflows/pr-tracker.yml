@@ -1,0 +1,72 @@
+name: PR Time Tracker
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  track-time:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate time from first commit to last commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100
+            });
+
+            if (commits.length === 0) {
+              core.setFailed('No commits found on this PR.');
+              return;
+            }
+
+            const firstCommitDate = new Date(commits[0].commit.author.date);
+            const lastCommitDate = new Date(commits[commits.length - 1].commit.author.date);
+
+            const diffMs = lastCommitDate - firstCommitDate;
+            const totalMinutes = Math.floor(diffMs / 60000);
+            const days = Math.floor(totalMinutes / 1440);
+            const hours = Math.floor((totalMinutes % 1440) / 60);
+            const minutes = totalMinutes % 60;
+
+            let timeStr = '';
+            if (days > 0) timeStr += `${days}d `;
+            if (hours > 0) timeStr += `${hours}h `;
+            timeStr += `${minutes}m`;
+
+            const body = [
+              `## ⏱️ PR Time Tracker`,
+              ``,
+              `| Metric | Value |`,
+              `|--------|-------|`,
+              `| **First Commit** | ${firstCommitDate.toUTCString()} |`,
+              `| **Last Commit** | ${lastCommitDate.toUTCString()} |`,
+              `| **Time Spent** | ${timeStr.trim()} |`,
+              `| **Total Commits** | ${commits.length} |`,
+              `| **Branch** | \`${pr.head.ref}\` |`,
+              `| **Author** | @${pr.user.login} |`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: body
+            });
+
+            core.summary.addRaw(body);
+            await core.summary.write();
+
+            console.log(`First commit: ${firstCommitDate.toISOString()}`);
+            console.log(`Last commit:  ${lastCommitDate.toISOString()}`);
+            console.log(`Time spent:   ${timeStr.trim()}`);
