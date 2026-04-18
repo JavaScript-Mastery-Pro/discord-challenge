@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
     }
 
     let body
