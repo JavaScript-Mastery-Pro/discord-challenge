@@ -97,10 +97,24 @@ export async function POST(req: NextRequest) {
       subject: data.subject,
       term,
     };
-    let max = data.maxMarks;
-    if (max === undefined) {
+    let max: number;
+    if (data.maxMarks === undefined) {
       const existing = await Grade.findOne(gradeFilter).select("maxMarks").lean();
       max = existing?.maxMarks ?? 100;
+    } else {
+      max = data.maxMarks;
+    }
+    if (!Number.isFinite(data.marks)) {
+      return NextResponse.json(
+        { error: "marks must be a valid number" },
+        { status: 400 },
+      );
+    }
+    if (data.marks > max) {
+      return NextResponse.json(
+        { error: "marks must be less than or equal to maxMarks" },
+        { status: 400 },
+      );
     }
 
     const grade = await Grade.findOneAndUpdate(
@@ -114,7 +128,7 @@ export async function POST(req: NextRequest) {
           grade: calcGrade(data.marks, max),
         },
       },
-      { upsert: true, new: true },
+      { upsert: true, new: true, runValidators: true, context: "query" },
     );
     return NextResponse.json(grade, { status: 201 });
   } catch (error) {

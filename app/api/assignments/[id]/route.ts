@@ -43,6 +43,12 @@ export async function PUT(
         { status: 400 },
       );
     }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
 
     // Sanitize: only allow whitelisted fields
     const sanitizedBody: Record<string, unknown> = {};

@@ -35,7 +35,16 @@ export async function PUT(
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Bad Request" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
     }
 
     // Sanitize: only allow whitelisted fields
