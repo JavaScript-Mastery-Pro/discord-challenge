@@ -8,7 +8,6 @@ import { z } from 'zod'
 
 const GradeSchema = z.object({
   studentId: z.string().min(1),
-  studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
   maxMarks: z.number().min(1).optional(),
