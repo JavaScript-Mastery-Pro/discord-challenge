@@ -18,9 +18,9 @@ export interface IStudent {
 const StudentSchema = new Schema<IStudent>(
   {
     teacherId: { type: String, required: true, index: true },
-    name: { type: String, required: true },
-    rollNo: { type: String, required: true },
-    class: { type: String, required: true },
+    name: { type: String, required: true, trim: true },
+    rollNo: { type: String, required: true, trim: true },
+    class: { type: String, required: true, trime: true },
     email: { type: String, default: '' },
     phone: { type: String, default: '' },
     address: { type: String, default: '' },
