@@ -1,178 +1,217 @@
-'use client'
+"use client";
 
-import { useEffect, useState, useCallback } from 'react'
-import { useForm } from 'react-hook-form'
-import { Button } from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
-import { Badge } from '@/components/ui/Badge'
-import { useToast } from '@/components/ui/Toast'
-import { TableSkeleton } from '@/components/ui/Skeleton'
+import { useEffect, useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Badge } from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
+import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Announcement {
-  _id: string
-  title: string
-  content: string
-  audience: string
-  category: string
-  pinned: boolean
-  createdAt: string
+  _id: string;
+  title: string;
+  content: string;
+  audience: string;
+  category: string;
+  pinned: boolean;
+  createdAt: string;
 }
 
 interface FormData {
-  title: string
-  content: string
-  audience: string
-  category: string
-  pinned: boolean
+  title: string;
+  content: string;
+  audience: string;
+  category: string;
+  pinned: boolean;
 }
 
-type CategoryFilter = 'all' | 'academic' | 'events' | 'admin' | 'general'
+type CategoryFilter = "all" | "academic" | "events" | "admin" | "general";
 
 const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'academic', label: 'Academic' },
-  { value: 'events', label: 'Events' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'general', label: 'General' },
-]
+  { value: "all", label: "All" },
+  { value: "academic", label: "Academic" },
+  { value: "events", label: "Events" },
+  { value: "admin", label: "Admin" },
+  { value: "general", label: "General" },
+];
 
-const CATEGORY_BADGE: Record<string, 'info' | 'success' | 'warning' | 'purple' | 'default'> = {
-  academic: 'info',
-  events: 'success',
-  admin: 'warning',
-  general: 'default',
-}
+const CATEGORY_BADGE: Record<
+  string,
+  "info" | "success" | "warning" | "purple" | "default"
+> = {
+  academic: "info",
+  events: "success",
+  admin: "warning",
+  general: "default",
+};
 
 function timeAgo(date: string) {
-  const diff = Date.now() - new Date(date).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function useReadState() {
   const [readIds, setReadIds] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set()
+    if (typeof window === "undefined") return new Set();
     try {
-      const stored = localStorage.getItem("announcement_read_ids")
-      if (stored) return new Set(JSON.parse(stored) as string[])
+      const stored = localStorage.getItem("announcement_read_ids");
+      if (stored) return new Set(JSON.parse(stored) as string[]);
     } catch {
       // Silently ignore JSON parse errors
     }
-    return new Set()
+    return new Set();
   });
 
   const markRead = useCallback((id: string) => {
     setReadIds((prev) => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      try { localStorage.setItem('announcement_read_ids', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }, [])
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem(
+          "announcement_read_ids",
+          JSON.stringify([...next]),
+        );
+      } catch {}
+      return next;
+    });
+  }, []);
 
   const markAllRead = useCallback((ids: string[]) => {
     setReadIds((prev) => {
-      const next = new Set(prev)
-      for (const id of ids) next.add(id)
-      try { localStorage.setItem('announcement_read_ids', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }, [])
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      try {
+        localStorage.setItem(
+          "announcement_read_ids",
+          JSON.stringify([...next]),
+        );
+      } catch {}
+      return next;
+    });
+  }, []);
 
-  return { readIds, markRead, markAllRead }
+  return { readIds, markRead, markAllRead };
 }
 
 export function AnnouncementsClient() {
-  const { toast } = useToast()
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Announcement | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const { toast } = useToast();
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
-  const { readIds, markRead, markAllRead } = useReadState()
+  const { readIds, markRead, markAllRead } = useReadState();
 
-  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>()
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<FormData>();
 
   const fetchAnnouncements = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await fetch('/api/announcements')
-      if (!res.ok) throw new Error(`Failed to fetch announcements: ${res.status}`)
-      const data = await res.json()
-      setAnnouncements(Array.isArray(data) ? data : [])
+      const res = await fetch("/api/announcements");
+      if (!res.ok)
+        throw new Error(`Failed to fetch announcements: ${res.status}`);
+      const data = await res.json();
+      setAnnouncements(Array.isArray(data) ? data : []);
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'Failed to load', 'error')
+      toast(error instanceof Error ? error.message : "Failed to load", "error");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [toast])
+  }, [toast]);
 
-  useEffect(() => { fetchAnnouncements() }, [fetchAnnouncements])
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
-  const filtered = categoryFilter === 'all'
-    ? announcements
-    : announcements.filter((a) => (a.category || 'general') === categoryFilter)
+  const filtered =
+    categoryFilter === "all"
+      ? announcements
+      : announcements.filter(
+          (a) => (a.category || "general") === categoryFilter,
+        );
 
-  const unreadCount = announcements.filter((a) => !readIds.has(a._id)).length
+  const unreadCount = announcements.filter((a) => !readIds.has(a._id)).length;
 
   const openAdd = () => {
-    setEditing(null)
-    reset({ audience: 'All', category: 'general', pinned: false })
-    setModalOpen(true)
-  }
+    setEditing(null);
+    reset({ audience: "All", category: "general", pinned: false });
+    setModalOpen(true);
+  };
 
   const openEdit = (a: Announcement) => {
-    setEditing(a)
-    reset({ title: a.title, content: a.content, audience: a.audience, category: a.category || 'general', pinned: a.pinned })
-    setModalOpen(true)
-  }
+    setEditing(a);
+    reset({
+      title: a.title,
+      content: a.content,
+      audience: a.audience,
+      category: a.category || "general",
+      pinned: a.pinned,
+    });
+    setModalOpen(true);
+  };
 
   const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id))
-    markRead(id)
-  }
+    setExpandedId((prev) => (prev === id ? null : id));
+    markRead(id);
+  };
 
   const onSubmit = async (data: FormData) => {
-    const url = editing ? `/api/announcements/${editing._id}` : '/api/announcements'
-    const method = editing ? 'PUT' : 'POST'
+    const url = editing
+      ? `/api/announcements/${editing._id}`
+      : "/api/announcements";
+    const method = editing ? "PUT" : "POST";
     try {
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      })
+      });
+      const result = await res.json();
+      console.log(result);
       if (res.ok) {
-        toast(editing ? 'Announcement updated!' : 'Announcement posted!', 'success')
-        setModalOpen(false)
-        fetchAnnouncements()
+        toast(
+          editing ? "Announcement updated!" : "Announcement posted!",
+          "success",
+        );
+        setModalOpen(false);
+        fetchAnnouncements();
       } else {
-        toast('Failed to save announcement', 'error')
+        toast("Failed to save announcement", "error");
       }
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'Network error', 'error')
+      toast(error instanceof Error ? error.message : "Network error", "error");
     }
-  }
+  };
 
   const togglePin = async (a: Announcement) => {
     try {
       const res = await fetch(`/api/announcements/${a._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pinned: !a.pinned }),
-      })
-      if (res.ok) { toast(a.pinned ? 'Unpinned' : 'Pinned!', 'success'); fetchAnnouncements() }
-      else toast('Failed to update', 'error')
+      });
+      if (res.ok) {
+        toast(a.pinned ? "Unpinned" : "Pinned!", "success");
+        fetchAnnouncements();
+      } else toast("Failed to update", "error");
     } catch (error) {
-      toast(error instanceof Error ? error.message : 'Network error', 'error')
+      toast(error instanceof Error ? error.message : "Network error", "error");
     }
-  }
+  };
 
   const executeDelete = async () => {
     if (!deleteTarget) return;
