@@ -13,7 +13,7 @@ const AttendanceSchema = z.object({
   status: z.enum(['present', 'absent', 'late']),
 })
 
-const BulkSchema = z.array(AttendanceSchema)
+const BulkSchema = z.array(AttendanceSchema).min(1, 'At least one attendance record is required')
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
