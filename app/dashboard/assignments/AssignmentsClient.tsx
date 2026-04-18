@@ -356,10 +356,18 @@ export function AssignmentsClient() {
       : "/api/assignments";
     const method = editing ? "PUT" : "POST";
     try {
+      const normalizedMaxMarks = Number.isFinite(data.maxMarks)
+        ? Number(data.maxMarks)
+        : undefined;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, maxMarks: Number(data.maxMarks) }),
+        body: JSON.stringify({
+          ...data,
+          ...(normalizedMaxMarks !== undefined
+            ? { maxMarks: normalizedMaxMarks }
+            : {}),
+        }),
       });
       if (res.ok) {
         toast(
