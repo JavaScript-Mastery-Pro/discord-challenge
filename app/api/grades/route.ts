@@ -3,14 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
-import mongoose from "mongoose";
+import mongoose from 'mongoose'
 import { Teacher } from '@/models/Teacher'
 
-const teacher = await Teacher.findOne({ clerkId: userId }).select('_id').lean()
-if (!teacher) {
-  return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
-}
-
+async function findTeacherByClerkId(userId: string){ 
+  return Teacher.findOne({ clerkId: userId }).select('_id').lean()
+};
+  
 const GradeSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid studentId'),
   studentName: z.string().min(1),
@@ -42,7 +41,11 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    await connectDB()
+    await connectDB();
+    
+    const teacher = await findTeacherByClerkId(userId);
+    if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
+    
     const { searchParams } = new URL(req.url)
     const studentId = searchParams.get('studentId')
     const subject = searchParams.get('subject')
@@ -67,6 +70,9 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB()
+
+     const teacher = await findTeacherByClerkId(userId);
+     if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
     
     let body
     try {
