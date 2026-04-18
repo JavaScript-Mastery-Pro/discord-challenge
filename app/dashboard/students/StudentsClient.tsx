@@ -211,7 +211,7 @@ function StudentDrawer({
   }, [grades]);
 
   const cgpa = useMemo(() => {
-    const GRADE_POINT: Record<string, number> = { 'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 5, F: 0 }
+    const GRADE_POINT: Record<string, number> = { 'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 4, F: 0 }
     if (!grades.length) return null
     const sum = grades.reduce((s, g) => s + (GRADE_POINT[g.grade] ?? 0), 0)
     return (sum / grades.length).toFixed(2)
