@@ -1,36 +1,36 @@
-'use client'
+"use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useForm } from 'react-hook-form'
-import { Button } from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
-import { Badge } from '@/components/ui/Badge'
-import { useToast } from '@/components/ui/Toast'
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Badge } from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 interface Assignment {
-  _id: string
-  title: string
-  description: string
-  subject: string
-  class: string
-  deadline: string
-  status: 'active' | 'closed'
-  kanbanStatus: 'todo' | 'in_progress' | 'submitted'
-  maxMarks: number
-  createdAt: string
+  _id: string;
+  title: string;
+  description: string;
+  subject: string;
+  class: string;
+  deadline: string;
+  status: "active" | "closed";
+  kanbanStatus: "todo" | "in_progress" | "submitted";
+  maxMarks: number;
+  createdAt: string;
 }
 
 interface FormData {
-  title: string
-  description: string
-  subject: string
-  class: string
-  deadline: string
-  maxMarks: number
+  title: string;
+  description: string;
+  subject: string;
+  class: string;
+  deadline: string;
+  maxMarks: number;
 }
 
-type KanbanCol = 'todo' | 'in_progress' | 'submitted'
+type KanbanCol = "todo" | "in_progress" | "submitted";
 
 const COLUMNS: {
   id: KanbanCol;
@@ -59,7 +59,9 @@ const COLUMNS: {
 ];
 
 function daysUntil(deadline: string) {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return Math.ceil(
+    (new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
 }
 
 function DeadlineBadge({ deadline }: { deadline: string }) {
@@ -241,11 +243,11 @@ function AssignmentDrawer({
 }
 
 export function AssignmentsClient() {
-  const { toast } = useToast()
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Assignment | null>(null)
+  const { toast } = useToast();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Assignment | null>(null);
   const [drawerAssignment, setDrawerAssignment] = useState<Assignment | null>(
     null,
   );
@@ -283,8 +285,7 @@ export function AssignmentsClient() {
       setAssignments(
         raw.map((a) => ({
           ...a,
-          kanbanStatus:
-            a.kanbanStatus ?? (a.status === "closed" ? "submitted" : "todo"),
+          kanbanStatus: a.kanbanStatus,
         })),
       );
     } catch (error) {
@@ -359,7 +360,11 @@ export function AssignmentsClient() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, maxMarks: Number(data.maxMarks) }),
+        body: JSON.stringify({
+          ...data,
+          deadline: new Date(data.deadline).toISOString(),
+          maxMarks: Number(data.maxMarks),
+        }),
       });
       if (res.ok) {
         toast(
@@ -464,10 +469,16 @@ export function AssignmentsClient() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-100">
         {COLUMNS.map((col) => (
-          <div key={col.id} className={`rounded-2xl border-t-4 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 animate-pulse ${col.accent}`}>
+          <div
+            key={col.id}
+            className={`rounded-2xl border-t-4 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 animate-pulse ${col.accent}`}
+          >
             <div className="h-5 w-24 bg-gray-200 dark:bg-slate-700 rounded mb-4" />
             {[1, 2].map((i) => (
-              <div key={i} className="rounded-xl bg-gray-100 dark:bg-slate-700/50 p-4 mb-3 space-y-2">
+              <div
+                key={i}
+                className="rounded-xl bg-gray-100 dark:bg-slate-700/50 p-4 mb-3 space-y-2"
+              >
                 <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-3/4" />
                 <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded w-1/2" />
               </div>
@@ -475,7 +486,7 @@ export function AssignmentsClient() {
           </div>
         ))}
       </div>
-    )
+    );
   }
 
   return (
