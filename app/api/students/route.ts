@@ -92,9 +92,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Malformed JSON' }, { status: 400 })
     }
     
-    StudentSchema.safeParse(body)
+    const parsed = StudentSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
 
-    const student = await Student.create({ ...(body as Record<string, unknown>), teacherId: userId })
+    const student = await Student.create({ ...parsed.data, teacherId: userId })
     return NextResponse.json(student, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
