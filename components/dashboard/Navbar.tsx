@@ -10,19 +10,10 @@ interface NavbarProps {
 export function Navbar({ onMenuClick, title }: NavbarProps) {
   const [dark, setDark] = useState(false);
 
-  // Initialize theme from localStorage and system preference on client-side only
+  // Initialize theme from the document state (set in RootLayout script)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("theme");
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      const isDark = stored ? stored === "dark" : prefersDark;
-      setDark(isDark);
-      document.documentElement.classList.toggle("dark", isDark);
-    } catch (e) {
-      // Silently fail if localStorage is not available
-    }
+    const isDark = document.documentElement.classList.contains("dark");
+    setDark(isDark);
   }, []);
 
   // Sync dark class to <html> whenever dark state changes
