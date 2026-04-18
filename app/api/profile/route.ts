@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
     if (department !== undefined && typeof department !== 'string') {
       return NextResponse.json({ error: 'department must be a string' }, { status: 400 })
     }
-    if (!Array.isArray(subjects) || !subjects.every((s) => typeof s === 'string')) {
+    if (!Array.isArray(subjects) || !subjects.every((s) => typeof s === 'string' && s.trim())) {
       return NextResponse.json({ error: 'subjects must be an array of strings' }, { status: 400 })
     }
     if (phone !== undefined && typeof phone !== 'string') {
