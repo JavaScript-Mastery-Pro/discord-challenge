@@ -1,10 +1,22 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { z } from 'zod'
 import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 
-const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'dueDate', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
+const AssignmentUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  subject: z.string().min(1).optional(),
+  class: z.string().min(1).optional(),
+  deadline: z.string().min(1).refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: 'Invalid deadline',
+  }).optional(),
+  maxMarks: z.number().min(1).optional(),
+  status: z.enum(['active', 'closed']).optional(),
+  kanbanStatus: z.enum(['todo', 'in_progress', 'submitted']).optional(),
+})
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -27,18 +39,19 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
 
-    // Sanitize: only allow whitelisted fields
-    const sanitizedBody: Record<string, unknown> = {}
-    for (const key of ALLOWED_UPDATE_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
-      }
+    const parsed = AssignmentUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+
+    if (Object.keys(parsed.data).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     const assignment = await Assignment.findOneAndUpdate(
-      { _id: id },
-      sanitizedBody,
-      { new: true }
+      { _id: id, teacherId: userId },
+      { $set: parsed.data },
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!assignment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(assignment)
@@ -63,7 +76,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Assignment.findOneAndDelete({ _id: id })
+    const deleted = await Assignment.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
