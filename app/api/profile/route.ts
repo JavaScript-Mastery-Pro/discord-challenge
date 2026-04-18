@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Teacher } from "@/models/Teacher";
 
-export async function GET(req: NextRequest) {
-  void req.nextUrl;
+export async function GET() {
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -136,7 +135,7 @@ export async function PUT(req: NextRequest) {
 
     const teacher = await Teacher.findOneAndUpdate(
       { clerkId: userId },
-      { $set: updatePayload, $setOnInsert: { clerkId: userId } },
+      { $set: updatePayload },
       { new: true, upsert: true, setDefaultsOnInsert: true },
     );
 

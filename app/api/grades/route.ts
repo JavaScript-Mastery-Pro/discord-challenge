@@ -97,8 +97,11 @@ export async function POST(req: NextRequest) {
       subject: data.subject,
       term,
     };
-    const existing = await Grade.findOne(gradeFilter).select("maxMarks").lean();
-    const max = data.maxMarks ?? existing?.maxMarks ?? 100;
+    let max = data.maxMarks;
+    if (max === undefined) {
+      const existing = await Grade.findOne(gradeFilter).select("maxMarks").lean();
+      max = existing?.maxMarks ?? 100;
+    }
 
     const grade = await Grade.findOneAndUpdate(
       gradeFilter,
