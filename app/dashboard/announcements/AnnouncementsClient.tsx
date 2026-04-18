@@ -46,7 +46,9 @@ const CATEGORY_BADGE: Record<string, 'info' | 'success' | 'warning' | 'purple' |
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()
+  if (diff < 0 || isNaN(diff)) return 'Just now'
   const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
