@@ -75,7 +75,7 @@ export function AttendanceClient() {
     }
     try {
       const res = await fetch(
-        `/api/students?search=${encodeURIComponent(selectedClass)}&limit=100`,
+        `/api/students?class=${encodeURIComponent(selectedClass)}&limit=100`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
