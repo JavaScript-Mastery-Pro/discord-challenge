@@ -19,7 +19,7 @@ const StudentSchema = new Schema<IStudent>(
   {
     teacherId: { type: String, required: true, index: true },
     name: { type: String, required: true, trim: true },
-    rollNo: { type: String, required: true, trim: true },
+    rollNo: { type: String, required: true, trim: true,  uppercase: true, },
     class: { type: String, required: true, trime: true },
     email: {  type: String,
       default: '',
