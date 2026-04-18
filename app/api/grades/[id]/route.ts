@@ -55,6 +55,11 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   try {
     const { id } = await ctx.params
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+    }
+
     await connectDB()
     const deleted = await Grade.findOneAndDelete({ _id: id, teacherId: userId })
     
