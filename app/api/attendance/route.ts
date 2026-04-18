@@ -5,6 +5,7 @@ import { Attendance } from '@/models/Attendance'
 import { Student } from '@/models/Student'
 import { z } from 'zod'
 
+// Use strict 24-hex ObjectId checks to reject 12-byte non-hex strings.
 const isCanonicalObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id)
 
 const AttendanceSchema = z.object({
