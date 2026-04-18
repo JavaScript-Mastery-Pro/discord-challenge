@@ -40,6 +40,27 @@ interface TimelineFormData {
   description: string
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 export function ProfileClient() {
   const { user } = useUser()
   const { toast } = useToast()
@@ -130,7 +151,7 @@ export function ProfileClient() {
         toast("Profile updated!", "success");
         setEditing(false);
       } else {
-        toast("Failed to update profile", "error");
+        toast(await getErrorMessage(res, "Failed to update profile"), "error");
       }
     } catch (error) {
       toast(
@@ -159,7 +180,7 @@ export function ProfileClient() {
         setProfile(updated);
         return true;
       } else {
-        toast("Failed to save history", "error");
+        toast(await getErrorMessage(res, "Failed to save history"), "error");
         return false;
       }
     } catch (error) {
