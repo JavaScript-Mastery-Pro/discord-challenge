@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 
-const ALLOWED_UPDATE_FIELDS = ['marks', 'maxMarks', 'grade']
+const ALLOWED_UPDATE_FIELDS = ['marks', 'maxMarks']
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
