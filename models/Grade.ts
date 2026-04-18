@@ -16,7 +16,7 @@ export interface IGrade {
 
 const GradeSchema = new Schema<IGrade>(
   {
-    teacherId: { type: String, required: true, index: true },
+    teacherId: { type: Schema.Types.ObjectId, ref: "Teacher", required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
     studentName: { type: String, required: true },
     subject: { type: String, required: true },
