@@ -2,7 +2,7 @@ import mongoose, { Schema, model, models } from 'mongoose'
 
 export interface IGrade {
   _id: mongoose.Types.ObjectId
-  teacherId: string
+  teacherId: mongoose.Types.ObjectId
   studentId: mongoose.Types.ObjectId
   studentName: string
   subject: string
