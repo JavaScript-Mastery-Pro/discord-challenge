@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Student } from '@/models/Student'
 
-const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'grade', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
+const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -25,19 +25,33 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 })
     }
 
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Bad Request' }, { status: 400 })
+    }
+
+    const payload = body as Record<string, unknown>
+    const unknownFields = Object.keys(payload).filter((key) => !ALLOWED_UPDATE_FIELDS.includes(key))
+    if (unknownFields.length > 0) {
+      return NextResponse.json({ error: `Unknown field(s): ${unknownFields.join(', ')}` }, { status: 400 })
+    }
+
     // Sanitize: only allow whitelisted fields
     const sanitizedBody: Record<string, unknown> = {}
     for (const key of ALLOWED_UPDATE_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        sanitizedBody[key] = payload[key]
       }
+    }
+
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
     }
 
     await connectDB()
     const student = await Student.findOneAndUpdate(
-      { _id: id },
+      { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true }
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(student)
@@ -65,7 +79,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Student.findOneAndDelete({ _id: id })
+    const deleted = await Student.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })

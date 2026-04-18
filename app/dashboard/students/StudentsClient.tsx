@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { calculateCgpaFromGrades } from '@/lib/grading'
 
 interface Student {
   _id: string
@@ -211,10 +212,7 @@ function StudentDrawer({
   }, [grades]);
 
   const cgpa = useMemo(() => {
-    const GRADE_POINT: Record<string, number> = { 'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 5, F: 0 }
-    if (!grades.length) return null
-    const sum = grades.reduce((s, g) => s + (GRADE_POINT[g.grade] ?? 0), 0)
-    return (sum / grades.length).toFixed(2)
+    return calculateCgpaFromGrades(grades)
   }, [grades])
 
   const color = avatarColor(student.name);
@@ -353,20 +351,18 @@ function StudentDrawer({
                     <div className="flex items-center gap-3 mb-3">
                       <div className="flex-1 h-2.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${
-                            (attendanceSummary.pct ?? 0) >= 75
+                          className={`h-full rounded-full transition-all ${(attendanceSummary.pct ?? 0) >= 75
                               ? "bg-emerald-500"
                               : "bg-red-500"
-                          }`}
+                            }`}
                           style={{ width: `${attendanceSummary.pct ?? 0}%` }}
                         />
                       </div>
                       <span
-                        className={`text-sm font-bold shrink-0 ${
-                          (attendanceSummary.pct ?? 0) >= 75
+                        className={`text-sm font-bold shrink-0 ${(attendanceSummary.pct ?? 0) >= 75
                             ? "text-emerald-600"
                             : "text-red-500"
-                        }`}
+                          }`}
                       >
                         {attendanceSummary.pct}%
                       </span>
@@ -727,13 +723,13 @@ export function StudentsClient() {
     label: string;
     colKey?: string;
   }[] = [
-    { key: "name", label: "Student" },
-    { key: "rollNo", label: "Roll No" },
-    { key: "class", label: "Class" },
-    { key: null, label: "Contact", colKey: "contact" },
-    { key: null, label: "Parent", colKey: "parent" },
-    { key: null, label: "Actions" },
-  ];
+      { key: "name", label: "Student" },
+      { key: "rollNo", label: "Roll No" },
+      { key: "class", label: "Class" },
+      { key: null, label: "Contact", colKey: "contact" },
+      { key: null, label: "Parent", colKey: "parent" },
+      { key: null, label: "Actions" },
+    ];
 
   function StudentRow({ s }: { s: Student }) {
     return (
@@ -898,11 +894,10 @@ export function StudentsClient() {
 
           <button
             onClick={() => setGroupByClass((v) => !v)}
-            className={`px-3 py-2 text-sm rounded-xl border transition-colors ${
-              groupByClass
+            className={`px-3 py-2 text-sm rounded-xl border transition-colors ${groupByClass
                 ? "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400"
                 : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
-            }`}
+              }`}
           >
             Group by Class
           </button>

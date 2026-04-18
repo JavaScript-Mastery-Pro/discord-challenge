@@ -38,35 +38,53 @@ GradeSchema.pre("save", function () {
   }
 });
 
-GradeSchema.pre("findOneAndUpdate", function () {
-  const update = this.getUpdate() as Record<string, unknown>;
-  if (update && typeof update === "object") {
-    const marks = update.marks;
-    const maxMarks = update.maxMarks;
-    if (
-      marks !== undefined && typeof marks === "number" &&
-      maxMarks !== undefined && typeof maxMarks === "number" &&
-      marks > maxMarks
-    ) {
-      throw new Error("marks must be less than or equal to maxMarks");
-    }
-  }
-});
+function pickNumberFromUpdate(update: Record<string, unknown>, field: "marks" | "maxMarks"): number | undefined {
+  const direct = update[field];
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
 
-GradeSchema.pre("updateOne", function () {
-  const update = this.getUpdate() as Record<string, unknown>;
-  if (update && typeof update === "object") {
-    const marks = update.marks;
-    const maxMarks = update.maxMarks;
-    if (
-      marks !== undefined && typeof marks === "number" &&
-      maxMarks !== undefined && typeof maxMarks === "number" &&
-      marks > maxMarks
-    ) {
-      throw new Error("marks must be less than or equal to maxMarks");
+  const $set = update.$set;
+  if ($set && typeof $set === "object") {
+    const setValue = ($set as Record<string, unknown>)[field];
+    if (typeof setValue === "number" && Number.isFinite(setValue)) return setValue;
+  }
+
+  return undefined;
+}
+
+async function validateMarksMaxMarksOnUpdate(this: mongoose.Query<unknown, IGrade>) {
+  const update = this.getUpdate() as Record<string, unknown> | null;
+  if (!update || typeof update !== "object") return;
+
+  let nextMarks = pickNumberFromUpdate(update, "marks");
+  let nextMaxMarks = pickNumberFromUpdate(update, "maxMarks");
+
+  if (nextMarks === undefined && nextMaxMarks === undefined) return;
+
+  if (nextMarks === undefined || nextMaxMarks === undefined) {
+    const currentRaw = await this.model.findOne(this.getQuery()).select("marks maxMarks").lean();
+    if (currentRaw && typeof currentRaw === "object") {
+      const current = currentRaw as { marks?: unknown; maxMarks?: unknown };
+      if (nextMarks === undefined && typeof current.marks === "number") nextMarks = current.marks;
+      if (nextMaxMarks === undefined && typeof current.maxMarks === "number") nextMaxMarks = current.maxMarks;
+    }
+
+    // For upsert flows where maxMarks is omitted, schema default is 100.
+    if (nextMarks !== undefined && nextMaxMarks === undefined) {
+      nextMaxMarks = 100;
     }
   }
-});
+
+  if (
+    nextMarks !== undefined &&
+    nextMaxMarks !== undefined &&
+    nextMarks > nextMaxMarks
+  ) {
+    throw new Error("marks must be less than or equal to maxMarks");
+  }
+}
+
+GradeSchema.pre("findOneAndUpdate", validateMarksMaxMarksOnUpdate);
+GradeSchema.pre("updateOne", validateMarksMaxMarksOnUpdate);
 
 GradeSchema.index({ teacherId: 1, studentId: 1, subject: 1, term: 1 }, { unique: true })
 
