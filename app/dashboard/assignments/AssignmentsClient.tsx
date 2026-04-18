@@ -344,7 +344,7 @@ export function AssignmentsClient() {
       description: a.description,
       subject: a.subject,
       class: a.class,
-      deadline: a.deadline,
+      deadline: a.deadline ? a.deadline.slice(0, 10) : "",
       maxMarks: a.maxMarks,
     });
     setModalOpen(true);
