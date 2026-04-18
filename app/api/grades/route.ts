@@ -70,13 +70,13 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const max = data.maxMarks!
+    const max = data.maxMarks ?? 100
     const term = data.term ?? 'Term 1'
     
-    const grade = Grade.findOneAndUpdate(
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
-      { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
-      { upsert: true, new: true }
+      { $set: { ...data, maxMarks: max, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
+      { upsert: true, new: true, runValidators: true, context: 'query' }
     )
     return NextResponse.json(grade, { status: 201 })
   } catch (error) {
