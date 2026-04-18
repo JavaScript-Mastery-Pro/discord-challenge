@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const max = data.maxMarks!
+    const max = data.maxMarks ?? 100;
     const term = data.term ?? 'Term 1'
     
     const grade = await Grade.findOneAndUpdate(
