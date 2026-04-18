@@ -10,20 +10,23 @@ export async function GET() {
 
   try {
     await connectDB();
-    const clerkUser = await currentUser();
-    const teacher = await Teacher.findOneAndUpdate(
-      { clerkId: userId },
-      {
-        $setOnInsert: {
-          clerkId: userId,
-          name: clerkUser?.fullName ?? "",
-          email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? "",
-          department: "",
-          subjects: [],
+    let teacher = await Teacher.findOne({ clerkId: userId }).lean();
+    if (!teacher) {
+      const clerkUser = await currentUser();
+      teacher = await Teacher.findOneAndUpdate(
+        { clerkId: userId },
+        {
+          $setOnInsert: {
+            clerkId: userId,
+            name: clerkUser?.fullName ?? "",
+            email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? "",
+            department: "",
+            subjects: [],
+          },
         },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true, lean: true },
-    );
+        { upsert: true, new: true, setDefaultsOnInsert: true, lean: true },
+      );
+    }
 
     return NextResponse.json(teacher);
   } catch (error) {
