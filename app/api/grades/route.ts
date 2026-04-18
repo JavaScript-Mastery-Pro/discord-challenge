@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data
     const maxMarks = data.maxMarks
-    const term = data.term ?? 'Term 1'
+    const term = data.term?.trim() || 'Term 1'
     
     const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
