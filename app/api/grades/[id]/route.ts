@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
+import { Student } from '@/models/Student'
 
-const ALLOWED_UPDATE_FIELDS = ['studentId', 'studentName', 'subject', 'term', 'marks', 'maxMarks']
+const ALLOWED_UPDATE_FIELDS = ['studentId', 'subject', 'term', 'marks', 'maxMarks']
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
@@ -48,6 +49,25 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 
     const existingGrade = await Grade.findOne({ _id: id, teacherId: userId })
     if (!existingGrade) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    if (typeof sanitizedBody.studentId === 'string') {
+      if (!mongoose.Types.ObjectId.isValid(sanitizedBody.studentId)) {
+        return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 })
+      }
+
+      const student = await Student.findOne({
+        _id: sanitizedBody.studentId,
+        teacherId: userId,
+      })
+        .select('_id name')
+        .lean()
+
+      if (!student) {
+        return NextResponse.json({ error: 'Student not found for this teacher' }, { status: 400 })
+      }
+
+      sanitizedBody.studentName = student.name
+    }
 
     const nextMarks =
       typeof sanitizedBody.marks === 'number' ? sanitizedBody.marks : existingGrade.marks
