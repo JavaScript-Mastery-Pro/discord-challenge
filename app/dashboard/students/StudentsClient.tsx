@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { getLocalDateInputValue } from '@/lib/date'
 
 interface Student {
   _id: string
@@ -87,7 +88,7 @@ function AttendanceHeatmap({ records }: { records: AttendanceRecord[] }) {
     for (let i = 34; i >= 0; i--) {
       const d = new Date(today)
       d.setDate(today.getDate() - i)
-      arr.push(d.toISOString().slice(0, 10))
+      arr.push(getLocalDateInputValue(d))
     }
     return arr
   }, [])

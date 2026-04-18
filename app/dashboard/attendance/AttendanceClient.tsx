@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
+import { getLocalDateInputValue } from '@/lib/date'
 
 interface Student {
   _id: string
@@ -43,17 +44,18 @@ function heatColor(rate: number | null) {
 export function AttendanceClient() {
   const { toast } = useToast()
   const [tab, setTab] = useState<Tab>('mark')
+  const today = getLocalDateInputValue()
 
   // ── Mark tab state ──
   const [students, setStudents] = useState<Student[]>([])
   const [selectedClass, setSelectedClass] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(today)
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({})
   const [saving, setSaving] = useState(false)
 
   // ── History tab state ──
   const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0])
+  const [historyDate, setHistoryDate] = useState(today)
   const [historyClass, setHistoryClass] = useState('')
   const [loadingHistory, setLoadingHistory] = useState(false)
 

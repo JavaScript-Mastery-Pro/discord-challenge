@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { daysUntilDateOnly, formatDateOnly, normalizeDateOnly } from '@/lib/date'
 
 interface Assignment {
   _id: string
@@ -59,7 +60,7 @@ const COLUMNS: {
 ];
 
 function daysUntil(deadline: string) {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return daysUntilDateOnly(deadline) ?? 0
 }
 
 function DeadlineBadge({ deadline }: { deadline: string }) {
@@ -170,15 +171,12 @@ function AssignmentDrawer({
               { label: "Class", value: assignment.class },
               {
                 label: "Deadline",
-                value: new Date(assignment.deadline).toLocaleDateString(
-                  "en-IN",
-                  {
-                    weekday: "short",
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  },
-                ),
+                value: formatDateOnly(assignment.deadline, "en-IN", {
+                  weekday: "short",
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                }),
               },
               { label: "Max Marks", value: String(assignment.maxMarks) },
               {
@@ -382,7 +380,7 @@ export function AssignmentsClient() {
       description: a.description,
       subject: a.subject,
       class: a.class,
-      deadline: a.deadline,
+      deadline: normalizeDateOnly(a.deadline) ?? "",
       maxMarks: a.maxMarks,
     });
     setModalOpen(true);
@@ -733,7 +731,7 @@ export function AssignmentsClient() {
 
                           <p className="text-xs text-gray-400 dark:text-slate-500">
                             Due{" "}
-                            {new Date(a.deadline).toLocaleDateString("en-IN", {
+                            {formatDateOnly(a.deadline, "en-IN", {
                               day: "numeric",
                               month: "short",
                             })}

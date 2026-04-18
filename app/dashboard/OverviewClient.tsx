@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { daysUntilDateOnly } from '@/lib/date'
 
 interface Stats {
   totalStudents: number
@@ -306,7 +307,6 @@ export function OverviewClient() {
       );
 
       // ── Upcoming deadlines ──
-      const now = Date.now();
       const upcomingDeadlines = (
         assignments as {
           _id: string;
@@ -320,9 +320,7 @@ export function OverviewClient() {
         .filter((a) => a.status === "active")
         .map((a) => ({
           ...a,
-          daysLeft: Math.ceil(
-            (new Date(a.deadline).getTime() - now) / 86400000,
-          ),
+          daysLeft: daysUntilDateOnly(a.deadline) ?? 0,
         }))
         .sort((a, b) => a.daysLeft - b.daysLeft)
         .slice(0, 5);
