@@ -1,12 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import { Grade } from "@/models/Grade";
 import { z } from "zod";
 
 const GradeSchema = z
   .object({
-    studentId: z.string().min(1),
+    studentId: z.string().refine((id) => mongoose.Types.ObjectId.isValid(id), {
+      message: "Invalid studentId",
+    }),
     studentName: z.string().min(1),
     subject: z.string().min(1),
     marks: z.number().min(0),
@@ -41,6 +44,9 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get("subject");
 
     const query: Record<string, unknown> = { teacherId: userId };
+    if (studentId && !mongoose.Types.ObjectId.isValid(studentId)) {
+      return NextResponse.json({ error: "Invalid studentId" }, { status: 400 });
+    }
     if (studentId) query.studentId = studentId;
     if (subject) query.subject = subject;
 
