@@ -200,6 +200,11 @@ export function OverviewClient() {
         fetch("/api/announcements?limit=5"),
       ]);
 
+      // Check that all responses are OK before processing
+      for (const res of [studentsRes, assignmentsRes, attendanceRes, gradesRes, announcementsRes]) {
+        if (!res.ok) throw new Error(`API error: ${res.url} returned ${res.status}`);
+      }
+
       const [students, assignmentsData, attendance, grades, announcements] =
         await Promise.all([
           studentsRes.json(),
@@ -254,7 +259,7 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
@@ -316,7 +321,7 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
+        totalStudents: students.total ?? students.students?.length ?? 0,
         totalAssignments: Array.isArray(assignments)
           ? assignments.length
           : (assignments.length ?? 0),

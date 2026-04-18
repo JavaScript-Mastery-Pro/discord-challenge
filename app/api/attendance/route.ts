@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
 import { z } from 'zod'
@@ -76,7 +77,12 @@ export async function GET(req: NextRequest) {
       query.date = dateRange;
     }
     if (cls) query.class = cls;
-    if (studentId) query.studentId = studentId;
+    if (studentId) {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        return NextResponse.json({ error: "Invalid studentId" }, { status: 400 });
+      }
+      query.studentId = studentId;
+    }
 
     const records = await Attendance.find(query)
       .sort({ date: -1, studentName: 1 })
@@ -124,7 +130,15 @@ export async function POST(req: NextRequest) {
       );
 
     if (isBulk) {
-      const ops = (parsed.data as z.infer<typeof BulkSchema>).map((record) => ({
+      const data = parsed.data as z.infer<typeof BulkSchema>;
+      // Validate all studentIds
+      for (const record of data) {
+        if (!mongoose.Types.ObjectId.isValid(record.studentId)) {
+          return NextResponse.json({ error: `Invalid studentId: ${record.studentId}` }, { status: 400 });
+        }
+      }
+
+      const ops = data.map((record) => ({
         updateOne: {
           filter: { teacherId: userId, studentId: record.studentId, date: record.date },
           update: { $set: { ...record, teacherId: userId } },
@@ -134,9 +148,14 @@ export async function POST(req: NextRequest) {
       await Attendance.bulkWrite(ops)
       return NextResponse.json({ success: true, count: ops.length })
     } else {
+      const data = parsed.data as z.infer<typeof AttendanceSchema>;
+      if (!mongoose.Types.ObjectId.isValid(data.studentId)) {
+        return NextResponse.json({ error: "Invalid studentId" }, { status: 400 });
+      }
+
       const record = await Attendance.findOneAndUpdate(
-        { teacherId: userId, studentId: (parsed.data as z.infer<typeof AttendanceSchema>).studentId, date: (parsed.data as z.infer<typeof AttendanceSchema>).date },
-        { $set: { ...(parsed.data as z.infer<typeof AttendanceSchema>), teacherId: userId } },
+        { teacherId: userId, studentId: data.studentId, date: data.date },
+        { $set: { ...data, teacherId: userId } },
         { upsert: true, new: true }
       )
       return NextResponse.json(record, { status: 201 })
