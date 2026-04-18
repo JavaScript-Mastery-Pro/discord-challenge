@@ -29,7 +29,9 @@ const GradeSchema = new Schema<IGrade>(
     },
     maxMarks: { type: Number, default: 100, min: 1 },
     grade: { type: String, default: "" },
-    term: { enum: ["Term 1", "Term 2"] },
+    term: {   type: String,
+      enum: ["Term 1", "Term 2"],
+      default: "Term 1", },
   },
   { timestamps: true },
 );
