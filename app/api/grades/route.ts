@@ -72,7 +72,11 @@ export async function POST(req: NextRequest) {
     const parsed = GradeSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-    const data = parsed.data
+    const data = {
+      ...parsed.data,
+      studentName: parsed.data.studentName.trim(),
+      subject: parsed.data.subject.trim(),
+    };
     const max = data.maxMarks ?? 100;
     const term = data.term ?? 'Term 1'
     
