@@ -49,11 +49,19 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const updatePayload: Record<string, unknown> = { ...sanitizedBody }
-    if ('marks' in updatePayload || 'maxMarks' in updatePayload) {
-      const nextMarks =
-        typeof updatePayload.marks === 'number' ? updatePayload.marks : existing.marks
-      const nextMaxMarks =
-        typeof updatePayload.maxMarks === 'number' ? updatePayload.maxMarks : existing.maxMarks
+    const hasMarks = 'marks' in updatePayload
+    const hasMaxMarks = 'maxMarks' in updatePayload
+    if (hasMarks || hasMaxMarks) {
+      const nextMarks = hasMarks ? Number(updatePayload.marks) : existing.marks
+      const nextMaxMarks = hasMaxMarks ? Number(updatePayload.maxMarks) : existing.maxMarks
+      if ((hasMarks && Number.isNaN(nextMarks)) || (hasMaxMarks && Number.isNaN(nextMaxMarks))) {
+        return NextResponse.json({ error: 'marks and maxMarks must be numbers' }, { status: 400 })
+      }
+      if (nextMarks > nextMaxMarks) {
+        return NextResponse.json({ error: 'marks must be less than or equal to maxMarks' }, { status: 400 })
+      }
+      if (hasMarks) updatePayload.marks = nextMarks
+      if (hasMaxMarks) updatePayload.maxMarks = nextMaxMarks
       updatePayload.grade = calcGrade(nextMarks, nextMaxMarks)
     }
 
