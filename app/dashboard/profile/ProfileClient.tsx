@@ -8,27 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-
-function formatZodError(error: any): string {
-  if (!error) return "Unknown error";
-
-  const messages: string[] = [];
-
-  if (error.formErrors?.length) {
-    messages.push(...error.formErrors);
-  }
-
-  if (error.fieldErrors) {
-    for (const key in error.fieldErrors) {
-      const errs = error.fieldErrors[key];
-      if (errs) {
-        messages.push(...errs.map((e: string) => `${key}: ${e}`));
-      }
-    }
-  }
-
-  return messages.join(", ");
-}
+import { formatZodError } from "@/lib/utils";
 
 interface AcademicHistoryEntry {
   year: string;
@@ -169,7 +149,10 @@ export function ProfileClient() {
       });
       const result = await res.json();
       if (!res.ok) {
-        toast(formatZodError(result.error), "error");
+        const submitErrors = formatZodError(result.error);
+        submitErrors.forEach((error) => {
+          toast(error, "error");
+        });
         return;
       }
 

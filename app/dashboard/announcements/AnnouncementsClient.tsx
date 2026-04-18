@@ -8,13 +8,16 @@ import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { formatZodError } from "@/lib/utils";
+
+type Category = "academic" | "events" | "admin" | "general";
 
 interface Announcement {
   _id: string;
   title: string;
   content: string;
-  audience: string;
-  category: string;
+  audience?: string;
+  category: Category;
   pinned: boolean;
   createdAt: string;
 }
@@ -23,7 +26,7 @@ interface FormData {
   title: string;
   content: string;
   audience: string;
-  category: string;
+  category: Category;
   pinned: boolean;
 }
 
@@ -116,7 +119,15 @@ export function AnnouncementsClient() {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      title: "",
+      content: "",
+      audience: "All",
+      category: "general",
+      pinned: false,
+    },
+  });
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
@@ -157,7 +168,7 @@ export function AnnouncementsClient() {
     reset({
       title: a.title,
       content: a.content,
-      audience: a.audience,
+      audience: a.audience || "All",
       category: a.category || "general",
       pinned: a.pinned,
     });
@@ -182,16 +193,20 @@ export function AnnouncementsClient() {
       });
       const result = await res.json();
       console.log(result);
-      if (res.ok) {
-        toast(
-          editing ? "Announcement updated!" : "Announcement posted!",
-          "success",
-        );
-        setModalOpen(false);
-        fetchAnnouncements();
-      } else {
-        toast("Failed to save announcement", "error");
+      if (!res.ok) {
+        const submitErrros = formatZodError(result.error);
+        submitErrros.forEach((res) => {
+          toast(res, "error");
+        });
+        return;
       }
+
+      toast(
+        editing ? "Announcement updated!" : "Announcement posted!",
+        "success",
+      );
+      setModalOpen(false);
+      fetchAnnouncements();
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     }

@@ -7,7 +7,7 @@ import { z } from "zod";
 const AnnouncementSchema = z.object({
   title: z.string().trim().min(1),
   content: z.string().trim().min(1),
-  audience: z.enum(["all", "students", "staff"]).optional(),
+  audience: z.enum(["All", "Students", "Staff"]).optional(),
   category: z.enum(["academic", "events", "admin", "general"]).optional(),
   pinned: z.boolean().optional(),
 });
