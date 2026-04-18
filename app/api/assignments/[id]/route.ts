@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 
-const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'dueDate', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
+const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -33,6 +33,10 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       if (key in body) {
         sanitizedBody[key] = body[key]
       }
+    }
+
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No valid assignment fields provided' }, { status: 400 })
     }
 
     const assignment = await Assignment.findOneAndUpdate(
