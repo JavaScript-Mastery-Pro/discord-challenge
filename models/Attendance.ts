@@ -2,10 +2,9 @@ import mongoose, { Schema, model, models } from 'mongoose'
 
 export interface IAttendance {
   _id: mongoose.Types.ObjectId
-  teacherId: string
+  teacherId: mongoose.Types.ObjectId
   studentId: mongoose.Types.ObjectId
-  studentName: string
-  class: string
+  // removed the class and studentName
   date: string
   status: 'present' | 'absent' | 'late'
   createdAt: Date
