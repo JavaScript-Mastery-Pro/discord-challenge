@@ -272,14 +272,52 @@ export function AssignmentsClient() {
   const fetchAssignments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/assignments?limit=100");
-      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-      const data = await res.json();
-      const raw: Assignment[] = Array.isArray(data.assignments)
-        ? data.assignments
-        : Array.isArray(data)
-          ? data
-          : [];
+      const parseAssignments = (data: unknown): Assignment[] => {
+        if (
+          data &&
+          typeof data === "object" &&
+          Array.isArray((data as { assignments?: unknown }).assignments)
+        ) {
+          return (data as { assignments: Assignment[] }).assignments
+        }
+
+        return Array.isArray(data) ? (data as Assignment[]) : []
+      }
+
+      const firstRes = await fetch("/api/assignments?limit=100&page=1");
+      if (!firstRes.ok) throw new Error(`Failed to fetch: ${firstRes.status}`);
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        !Array.isArray(firstData) &&
+        typeof (firstData as { pages?: unknown }).pages === "number"
+          ? Math.max(1, (firstData as { pages: number }).pages)
+          : 1;
+
+      let raw = parseAssignments(firstData);
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/assignments?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) {
+                  throw new Error(
+                    `Failed to fetch page ${index + 2}: ${res.status}`,
+                  );
+                }
+
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        raw = raw.concat(...remainingPages.map(parseAssignments));
+      }
+
       setAssignments(
         raw.map((a) => ({
           ...a,
