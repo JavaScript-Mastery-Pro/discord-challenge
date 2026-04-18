@@ -59,11 +59,14 @@ const COLUMNS: {
 ];
 
 function daysUntil(deadline: string) {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const t = new Date(deadline).getTime();
+  if (!Number.isFinite(t)) return NaN;
+  return Math.ceil((t - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 function DeadlineBadge({ deadline }: { deadline: string }) {
   const days = daysUntil(deadline);
+  if (!Number.isFinite(days)) return <Badge variant="default">Invalid date</Badge>;
   if (days < 0) return <Badge variant="danger">Overdue</Badge>;
   if (days <= 2) return <Badge variant="danger">{days}d left</Badge>;
   if (days <= 7) return <Badge variant="warning">{days}d left</Badge>;

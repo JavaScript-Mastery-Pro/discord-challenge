@@ -30,13 +30,27 @@ export async function GET(req: NextRequest) {
 
     const query: Record<string, unknown> = { teacherId: userId };
 
-    // Helper to validate and normalize date strings to YYYY-MM-DD format
+    // Normalize calendar dates to YYYY-MM-DD without UTC day-shift (date-only input)
     const normalizeDate = (dateStr: string): string | null => {
+      const trimmed = dateStr.trim();
+      const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+      if (ymd) {
+        const y = Number(ymd[1]);
+        const m = Number(ymd[2]);
+        const day = Number(ymd[3]);
+        const local = new Date(y, m - 1, day);
+        if (
+          local.getFullYear() === y &&
+          local.getMonth() === m - 1 &&
+          local.getDate() === day
+        ) {
+          return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+        }
+        return null;
+      }
       try {
-        // Try to parse as ISO date (YYYY-MM-DD or full ISO 8601)
-        const d = new Date(dateStr);
+        const d = new Date(trimmed);
         if (isNaN(d.getTime())) return null;
-        // Return in YYYY-MM-DD format for MongoDB string comparison
         return d.toISOString().split("T")[0];
       } catch {
         return null;

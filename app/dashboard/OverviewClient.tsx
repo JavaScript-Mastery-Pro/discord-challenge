@@ -200,14 +200,52 @@ export function OverviewClient() {
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
-        await Promise.all([
-          studentsRes.json(),
-          assignmentsRes.json(),
-          attendanceRes.json(),
-          gradesRes.json(),
-          announcementsRes.json(),
-        ]);
+      const students = await studentsRes.json();
+      if (!studentsRes.ok) {
+        throw new Error(
+          typeof students.error === "string"
+            ? students.error
+            : `Students failed (${studentsRes.status})`,
+        );
+      }
+      const assignmentsData = await assignmentsRes.json();
+      if (!assignmentsRes.ok) {
+        throw new Error(
+          typeof assignmentsData.error === "string"
+            ? assignmentsData.error
+            : `Assignments failed (${assignmentsRes.status})`,
+        );
+      }
+      const attendanceRaw = await attendanceRes.json();
+      if (!attendanceRes.ok) {
+        throw new Error(
+          typeof attendanceRaw.error === "string"
+            ? attendanceRaw.error
+            : `Attendance failed (${attendanceRes.status})`,
+        );
+      }
+      const gradesRaw = await gradesRes.json();
+      if (!gradesRes.ok) {
+        throw new Error(
+          typeof gradesRaw.error === "string"
+            ? gradesRaw.error
+            : `Grades failed (${gradesRes.status})`,
+        );
+      }
+      const announcementsRaw = await announcementsRes.json();
+      if (!announcementsRes.ok) {
+        throw new Error(
+          typeof announcementsRaw.error === "string"
+            ? announcementsRaw.error
+            : `Announcements failed (${announcementsRes.status})`,
+        );
+      }
+
+      const attendance = Array.isArray(attendanceRaw) ? attendanceRaw : [];
+      const grades = Array.isArray(gradesRaw) ? gradesRaw : [];
+      const announcements = Array.isArray(announcementsRaw)
+        ? announcementsRaw
+        : [];
 
       const assignments = assignmentsData.assignments ?? assignmentsData;
 
@@ -254,7 +292,7 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
@@ -316,7 +354,7 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
+        totalStudents: students.total ?? students.students?.length ?? 0,
         totalAssignments: Array.isArray(assignments)
           ? assignments.length
           : (assignments.length ?? 0),

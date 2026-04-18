@@ -188,25 +188,36 @@ function StudentDrawer({
   }, [attendance])
 
   const recentGrades = useMemo(() => {
+    const TERM_ORDER = [
+      "Term 1",
+      "Term 2",
+      "Term 3",
+      "Term 4",
+      "Semester 1",
+      "Semester 2",
+      "Semester 3",
+      "Semester 4",
+      "Semester 5",
+      "Semester 6",
+      "Semester 7",
+      "Semester 8",
+    ];
     const SEASON_ORDER: Record<string, number> = {
       Spring: 1,
       Summer: 2,
       Fall: 3,
       Winter: 4,
     };
-    const sortedGrades = [...grades].sort((a, b) => {
-      // Parse term string (e.g., "Spring 2024") to extract season and year
-      const parseTermKey = (term: string): number => {
-        const parts = term.split(" ");
-        const season = parts[0] || "";
-        const year = parseInt(parts[1] || "0", 10);
-        const seasonVal = SEASON_ORDER[season] ?? 0;
-        return year * 100 + seasonVal; // e.g., 202401 for Spring 2024
-      };
-      const aKey = parseTermKey(a.term);
-      const bKey = parseTermKey(b.term);
-      return bKey - aKey; // Descending chronological order
-    });
+    const termRank = (term: string): number => {
+      const i = TERM_ORDER.indexOf(term);
+      if (i !== -1) return 1000 + i;
+      const parts = term.split(" ");
+      const season = parts[0] || "";
+      const year = parseInt(parts[1] || "0", 10);
+      const seasonVal = SEASON_ORDER[season] ?? 0;
+      return year * 100 + seasonVal;
+    };
+    const sortedGrades = [...grades].sort((a, b) => termRank(b.term) - termRank(a.term));
     return sortedGrades.slice(0, 6);
   }, [grades]);
 
@@ -548,14 +559,27 @@ export function StudentsClient() {
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (classFilter !== "all") params.set("class", classFilter);
       const res = await fetch(`/api/students?${params}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg =
+          typeof (errBody as { error?: string }).error === "string"
+            ? (errBody as { error: string }).error
+            : `Request failed (${res.status})`;
+        throw new Error(msg);
+      }
       const data = await res.json();
       setStudents(data.students ?? []);
       setTotal(data.total ?? 0);
       setPages(data.pages ?? 1);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed to load students", "error");
+      setStudents([]);
+      setTotal(0);
+      setPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, classFilter]);
+  }, [page, debouncedSearch, classFilter, toast]);
 
   useEffect(() => {
     fetchStudents();
