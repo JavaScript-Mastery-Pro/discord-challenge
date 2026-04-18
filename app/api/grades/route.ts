@@ -21,7 +21,7 @@ const GradeSchema = z.object({
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
+  if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
   if (pct >= 70) return 'B+'
   if (pct >= 60) return 'B'
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(grades)
   } catch (error) {
     console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -70,19 +70,22 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const max = data.maxMarks!
+    const max = data.maxMarks ?? 100
     const term = data.term ?? 'Term 1'
     
-    const grade = Grade.findOneAndUpdate(
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
       { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
     )
     return NextResponse.json(grade, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
       console.error('POST /api/grades error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    if ((error as { code?: number }).code === 11000) {
+      return NextResponse.json({ error: 'A grade already exists for this student, subject, and term' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
