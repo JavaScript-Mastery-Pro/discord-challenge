@@ -46,6 +46,16 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (error instanceof Error) {
       console.error('PUT /api/assignments/[id] error:', error.message)
     }
+    if (error instanceof mongoose.Error.ValidationError) {
+      const firstError = Object.values(error.errors)[0]
+      return NextResponse.json(
+        { error: firstError?.message ?? 'Invalid assignment update' },
+        { status: 400 }
+      )
+    }
+    if (error instanceof mongoose.Error.CastError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
