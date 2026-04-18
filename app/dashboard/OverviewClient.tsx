@@ -189,27 +189,39 @@ export function OverviewClient() {
       const [
         studentsRes,
         assignmentsRes,
+        assignmentsActiveRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
         fetch("/api/assignments"),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
-        await Promise.all([
-          studentsRes.json(),
-          assignmentsRes.json(),
-          attendanceRes.json(),
-          gradesRes.json(),
-          announcementsRes.json(),
-        ]);
+      const [
+        students,
+        assignmentsData,
+        assignmentsActiveData,
+        attendance,
+        grades,
+        announcements,
+      ] = await Promise.all([
+        studentsRes.json(),
+        assignmentsRes.json(),
+        assignmentsActiveRes.json(),
+        attendanceRes.json(),
+        gradesRes.json(),
+        announcementsRes.json(),
+      ]);
 
       const assignments = assignmentsData.assignments ?? assignmentsData;
+      const assignmentsTotal = assignmentsData.total ?? assignments.length;
+      const pendingAssignments = assignmentsActiveData.total ??
+        (assignmentsActiveData.assignments ?? assignmentsActiveData ?? []).length;
 
       // ── Attendance ──
       const dateMap: Record<
@@ -316,13 +328,9 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
-        totalAssignments: Array.isArray(assignments)
-          ? assignments.length
-          : (assignments.length ?? 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        totalStudents: students.total ?? students.students?.length ?? 0,
+        totalAssignments: assignmentsTotal,
+        pendingAssignments,
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,

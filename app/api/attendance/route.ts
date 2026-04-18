@@ -110,6 +110,12 @@ export async function POST(req: NextRequest) {
 
     // Support both single and bulk
     const isBulk = Array.isArray(body)
+    if (isBulk && body.length === 0) {
+      return NextResponse.json(
+        { error: "Bulk payload must include at least one record" },
+        { status: 400 },
+      );
+    }
     if (isBulk && body.length > 500) {
       return NextResponse.json(
         { error: "Bulk payload exceeds maximum of 500 records" },

@@ -60,7 +60,7 @@ function pct(marks: number, max: number) {
 }
 
 const GRADE_POINT: Record<string, number> = {
-  'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 5, F: 0,
+  'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 4, F: 0,
 }
 
 function cgpaFromGrades(gradeList: Grade[]) {
@@ -294,10 +294,13 @@ export function GradesClient() {
       toast("Selected student not found", "error");
       return;
     }
+    const normalizedMaxMarks = Number.isFinite(data.maxMarks)
+      ? Number(data.maxMarks)
+      : undefined;
     const payload = {
       ...data,
       marks: Number(data.marks),
-      maxMarks: Number(data.maxMarks),
+      ...(normalizedMaxMarks !== undefined ? { maxMarks: normalizedMaxMarks } : {}),
       studentName: selectedStudent.name,
     };
     const url = editing ? `/api/grades/${editing._id}` : "/api/grades";

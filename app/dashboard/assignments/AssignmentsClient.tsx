@@ -344,7 +344,7 @@ export function AssignmentsClient() {
       description: a.description,
       subject: a.subject,
       class: a.class,
-      deadline: a.deadline,
+      deadline: a.deadline ? a.deadline.slice(0, 10) : "",
       maxMarks: a.maxMarks,
     });
     setModalOpen(true);
@@ -356,10 +356,18 @@ export function AssignmentsClient() {
       : "/api/assignments";
     const method = editing ? "PUT" : "POST";
     try {
+      const normalizedMaxMarks = Number.isFinite(data.maxMarks)
+        ? Number(data.maxMarks)
+        : undefined;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, maxMarks: Number(data.maxMarks) }),
+        body: JSON.stringify({
+          ...data,
+          ...(normalizedMaxMarks !== undefined
+            ? { maxMarks: normalizedMaxMarks }
+            : {}),
+        }),
       });
       if (res.ok) {
         toast(
@@ -387,7 +395,7 @@ export function AssignmentsClient() {
       ),
     );
     try {
-      await fetch(`/api/assignments/${id}`, {
+      const res = await fetch(`/api/assignments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -395,6 +403,7 @@ export function AssignmentsClient() {
           status: col === "submitted" ? "closed" : "active",
         }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (error) {
       fetchAssignments();
       toast(

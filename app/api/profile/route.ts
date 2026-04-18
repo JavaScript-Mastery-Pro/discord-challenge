@@ -4,15 +4,14 @@ import { connectDB } from '@/lib/mongodb'
 import { Teacher } from '@/models/Teacher'
 
 export async function GET(req: NextRequest) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const queryUserId = searchParams.get('userId')
-
-  let userId: string | null = queryUserId
-  if (!userId) {
-    const session = await auth()
-    userId = session.userId
+  if (queryUserId && queryUserId !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     await connectDB()
