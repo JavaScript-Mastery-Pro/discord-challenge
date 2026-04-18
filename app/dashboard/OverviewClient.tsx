@@ -187,16 +187,111 @@ export function OverviewClient() {
     else setLoading(true);
     setError(null);
     try {
+      const fetchAllAssignments = async () => {
+        const parseAssignments = (
+          data: unknown,
+        ): {
+          assignments: {
+            _id: string;
+            title: string;
+            subject: string;
+            class: string;
+            deadline: string;
+            status: string;
+          }[];
+          total: number | null;
+        } => {
+          if (
+            data &&
+            typeof data === "object" &&
+            Array.isArray((data as { assignments?: unknown }).assignments)
+          ) {
+            return {
+              assignments: (data as {
+                assignments: {
+                  _id: string;
+                  title: string;
+                  subject: string;
+                  class: string;
+                  deadline: string;
+                  status: string;
+                }[];
+              }).assignments,
+              total:
+                typeof (data as { total?: unknown }).total === "number"
+                  ? (data as { total: number }).total
+                  : null,
+            };
+          }
+
+          return {
+            assignments: Array.isArray(data)
+              ? (data as {
+                  _id: string;
+                  title: string;
+                  subject: string;
+                  class: string;
+                  deadline: string;
+                  status: string;
+                }[])
+              : [],
+            total: null,
+          };
+        };
+
+        const firstRes = await fetch("/api/assignments?limit=100&page=1");
+        if (!firstRes.ok) {
+          throw new Error(`Assignments: ${firstRes.status}`);
+        }
+
+        const firstData = await firstRes.json();
+        const firstPage = parseAssignments(firstData);
+        const totalPages =
+          firstData &&
+          typeof firstData === "object" &&
+          !Array.isArray(firstData) &&
+          typeof (firstData as { pages?: unknown }).pages === "number"
+            ? Math.max(1, (firstData as { pages: number }).pages)
+            : 1;
+
+        let allAssignments = firstPage.assignments;
+
+        if (totalPages > 1) {
+          const remainingPages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) =>
+              fetch(`/api/assignments?limit=100&page=${index + 2}`).then(
+                async (res) => {
+                  if (!res.ok) {
+                    throw new Error(`Assignments: ${res.status}`);
+                  }
+
+                  return res.json();
+                },
+              ),
+            ),
+          );
+
+          allAssignments = allAssignments.concat(
+            ...remainingPages.map((page) => parseAssignments(page).assignments),
+          );
+        }
+
+        return {
+          assignments: allAssignments,
+          total: firstPage.total,
+        };
+      };
+
       const [
         studentsRes,
-        assignmentsRes,
+        assignmentsData,
         activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
-        fetch("/api/assignments"),
+        fetchAllAssignments(),
         fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
@@ -205,7 +300,6 @@ export function OverviewClient() {
 
       const [
         students,
-        assignmentsData,
         activeAssignmentsData,
         attendance,
         grades,
@@ -213,14 +307,13 @@ export function OverviewClient() {
       ] =
         await Promise.all([
           studentsRes.json(),
-          assignmentsRes.json(),
           activeAssignmentsRes.json(),
           attendanceRes.json(),
           gradesRes.json(),
           announcementsRes.json(),
         ]);
 
-      const assignments = assignmentsData.assignments ?? assignmentsData;
+      const assignments = assignmentsData.assignments;
       const activeAssignments =
         activeAssignmentsData.assignments ?? activeAssignmentsData;
 
