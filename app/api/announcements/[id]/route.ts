@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Announcement } from '@/models/Announcement'
 
-const ALLOWED_FIELDS = ['title', 'content', 'body', 'audience', 'category', 'pinned', 'expiresAt']
+const ALLOWED_FIELDS = ['title', 'content', 'audience', 'category', 'pinned']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -27,12 +27,26 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 })
     }
 
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 })
+    }
+
+    const payload = body as Record<string, unknown>
+    const unknownFields = Object.keys(payload).filter((key) => !ALLOWED_FIELDS.includes(key))
+    if (unknownFields.length > 0) {
+      return NextResponse.json({ error: `Unknown field(s): ${unknownFields.join(', ')}` }, { status: 400 })
+    }
+
     // Sanitize: only allow whitelisted fields
     const sanitizedBody: Record<string, unknown> = {}
     for (const key of ALLOWED_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        sanitizedBody[key] = payload[key]
       }
+    }
+
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
     }
 
     const announcement = await Announcement.findOneAndUpdate(
