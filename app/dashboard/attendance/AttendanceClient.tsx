@@ -32,6 +32,30 @@ const STATUS_BADGE: Record<AttendanceStatus, 'success' | 'danger' | 'warning'> =
   late: 'warning',
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+    if (Array.isArray(payload?.error?.formErrors) && payload.error.formErrors[0]) {
+      return payload.error.formErrors[0]
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 // Heatmap cell color based on attendance rate
 function heatColor(rate: number | null) {
   if (rate === null) return 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-600'
@@ -192,7 +216,7 @@ export function AttendanceClient() {
       });
       if (res.ok)
         toast(`Attendance saved for ${payload.length} students!`, "success");
-      else toast("Failed to save attendance", "error");
+      else toast(await getErrorMessage(res, "Failed to save attendance"), "error");
     } catch {
       toast("Failed to save attendance", "error");
     } finally {
