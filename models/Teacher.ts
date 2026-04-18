@@ -51,4 +51,7 @@ const TeacherSchema = new Schema<ITeacher>(
   { timestamps: true },
 );
 
+TeacherSchema.index({ department: 1 });
+TeacherSchema.index({ subjects: 1 });
+
 export const Teacher = models.Teacher ?? model<ITeacher>('Teacher', TeacherSchema)
