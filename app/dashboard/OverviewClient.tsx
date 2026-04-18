@@ -400,9 +400,10 @@ export function OverviewClient() {
       for (const g of grades)
         gradeCounts[g.grade || "N/A"] =
           (gradeCounts[g.grade || "N/A"] || 0) + 1;
-      const gradeDistribution = Object.entries(gradeCounts).map(
-        ([grade, count]) => ({ grade, count }),
-      );
+      const GRADE_ORDER = ["A+", "A", "B+", "B", "C", "D", "F", "N/A"];
+      const gradeDistribution = Object.entries(gradeCounts)
+        .sort(([a], [b]) => GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b))
+        .map(([grade, count]) => ({ grade, count }));
 
       // ── Upcoming deadlines ──
       const upcomingDeadlines = (
