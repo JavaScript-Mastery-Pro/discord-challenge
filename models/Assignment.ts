@@ -32,5 +32,7 @@ const AssignmentSchema = new Schema<IAssignment>(
   },
   { timestamps: true }
 )
-
+AssignmentSchema.index({ teacherId: 1, class: 1 });
+AssignmentSchema.index({ status: 1 });
+AssignmentSchema.index({ deadline: 1 });
 export const Assignment = models.Assignment ?? model<IAssignment>('Assignment', AssignmentSchema)
