@@ -14,15 +14,24 @@ export interface IAnnouncement {
 
 const AnnouncementSchema = new Schema<IAnnouncement>(
   {
-    teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
-    title: { type: String, required: true },
-    content: { type: String, required: true },
-    audience: { type: String, default: 'All' },
-    category: { type: String, enum: ['academic', 'events', 'admin', 'general'], default: 'general' },
+    teacherId: {
+      type: Schema.Types.ObjectId,
+      ref: "Teacher",
+      required: true,
+      index: true,
+    },
+    title: { type: String, required: true, trim: true, minlength: 3 },
+    content: { type: String, required: true, trim: true, minlength: 5 },
+    audience: { type: String, enum: ["All", "CS-A", "CS-B"], default: "All" },
+    category: {
+      type: String,
+      enum: ["academic", "events", "admin", "general"],
+      default: "general",
+    },
     pinned: { type: Boolean, default: false },
   },
-  { timestamps: true }
-)
+  { timestamps: true },
+);
 
 export const Announcement =
   models.Announcement ?? model<IAnnouncement>('Announcement', AnnouncementSchema)
