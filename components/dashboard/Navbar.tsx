@@ -8,13 +8,10 @@ interface NavbarProps {
 }
 
 export function Navbar({ onMenuClick, title }: NavbarProps) {
-  const [dark, setDark] = useState(false);
-
-  // Initialize theme from the document state (set in RootLayout script)
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setDark(isDark);
-  }, []);
+  const [dark, setDark] = useState(() => {
+    if (typeof document === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  });
 
   // Sync dark class to <html> whenever dark state changes
   useEffect(() => {
