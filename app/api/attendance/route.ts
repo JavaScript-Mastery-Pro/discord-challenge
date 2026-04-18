@@ -163,7 +163,10 @@ export async function POST(req: NextRequest) {
         teacherId: userId,
       });
       if (!student) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return NextResponse.json(
+          { error: 'Student not found or access denied' },
+          { status: 403 },
+        );
       }
 
       const record = await Attendance.findOneAndUpdate(
