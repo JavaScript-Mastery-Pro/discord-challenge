@@ -364,16 +364,10 @@ export function GradesClient() {
         setModalOpen(false);
         fetchGrades();
       } else {
-        let message = "Failed to save grade";
-        try {
-          const err = await res.json();
-          if (typeof err.error === "string") {
-            message = err.error;
-          }
-        } catch {
-          message = `Failed to save grade (${res.status})`;
-        }
-        toast(message, "error");
+        toast(
+          await getErrorMessage(res, `Failed to save grade (${res.status})`),
+          "error",
+        );
       }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
