@@ -131,16 +131,46 @@ export function GradesClient() {
   const fetchGrades = useCallback(async () => {
     setLoading(true);
     try {
-      const [gradesRes, studentsRes] = await Promise.all([
-        fetch("/api/grades"),
-        fetch("/api/students?limit=200"),
-      ]);
+      const gradesRes = await fetch("/api/grades");
+      const firstStudentsRes = await fetch("/api/students?limit=100&page=1");
       if (!gradesRes.ok) throw new Error(`Grades: ${gradesRes.status}`);
-      if (!studentsRes.ok) throw new Error(`Students: ${studentsRes.status}`);
+      if (!firstStudentsRes.ok) {
+        throw new Error(`Students: ${firstStudentsRes.status}`);
+      }
+
       const gradesData = await gradesRes.json();
-      const studentsData = await studentsRes.json();
+      const firstStudentsData = await firstStudentsRes.json();
+      const totalPages =
+        firstStudentsData &&
+        typeof firstStudentsData === "object" &&
+        typeof firstStudentsData.pages === "number"
+          ? Math.max(1, firstStudentsData.pages)
+          : 1;
+
+      let allStudents: Student[] = firstStudentsData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/students?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) {
+                  throw new Error(`Students: ${res.status}`);
+                }
+
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        allStudents = allStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
       setGrades(Array.isArray(gradesData) ? gradesData : []);
-      setStudents(studentsData.students ?? []);
+      setStudents(allStudents);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to load", "error");
     } finally {
@@ -312,7 +342,18 @@ export function GradesClient() {
         toast(editing ? "Grade updated!" : "Grade added!", "success");
         setModalOpen(false);
         fetchGrades();
-      } else toast("Failed to save grade", "error");
+      } else {
+        let message = "Failed to save grade";
+        try {
+          const err = await res.json();
+          if (typeof err.error === "string") {
+            message = err.error;
+          }
+        } catch {
+          message = `Failed to save grade (${res.status})`;
+        }
+        toast(message, "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     }
