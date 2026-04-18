@@ -74,14 +74,38 @@ export function AttendanceClient() {
       return;
     }
     try {
-      const res = await fetch(
-        `/api/students?search=${encodeURIComponent(selectedClass)}&limit=100`,
+      const firstRes = await fetch(
+        `/api/students?class=${encodeURIComponent(selectedClass)}&limit=100&page=1`,
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const classStudents = (data.students ?? []).filter(
-        (s: Student) => s.class === selectedClass,
-      );
+      if (!firstRes.ok) throw new Error(`HTTP ${firstRes.status}`);
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        typeof firstData.pages === "number"
+          ? Math.max(1, firstData.pages)
+          : 1;
+
+      let classStudents: Student[] = firstData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(
+              `/api/students?class=${encodeURIComponent(selectedClass)}&limit=100&page=${index + 2}`,
+            ).then(async (res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            }),
+          ),
+        );
+
+        classStudents = classStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
       setStudents(classStudents);
       const init: Record<string, AttendanceStatus> = {};
       for (const s of classStudents) init[s._id] = "present";
