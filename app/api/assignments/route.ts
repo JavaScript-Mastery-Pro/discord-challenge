@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 import { z } from 'zod'
@@ -79,6 +80,16 @@ export async function POST(req: NextRequest) {
     } catch (dbError) {
       if (dbError instanceof Error) {
         console.error('Assignment.create error:', dbError.message)
+      }
+      if (dbError instanceof mongoose.Error.ValidationError) {
+        const firstError = Object.values(dbError.errors)[0]
+        return NextResponse.json(
+          { error: firstError?.message ?? 'Invalid assignment payload' },
+          { status: 400 }
+        )
+      }
+      if (dbError instanceof mongoose.Error.CastError) {
+        return NextResponse.json({ error: dbError.message }, { status: 400 })
       }
       return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
     }
