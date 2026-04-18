@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
@@ -42,7 +43,12 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get('subject')
 
     const query: Record<string, unknown> = { teacherId: userId }
-    if (studentId) query.studentId = studentId
+    if (studentId) {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        return NextResponse.json({ error: "Invalid studentId" }, { status: 400 });
+      }
+      query.studentId = studentId
+    }
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
