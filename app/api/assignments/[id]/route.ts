@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 
-const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'dueDate', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
+const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
