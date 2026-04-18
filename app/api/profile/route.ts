@@ -104,8 +104,8 @@ export async function PUT(req: NextRequest) {
     const teacher = await Teacher.findOneAndUpdate(
       { clerkId: userId },
       { $set: updatePayload },
-      { new: true }
-    )
+      { new: true, runValidators: true },
+    );
     
     if (!teacher) {
       return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
