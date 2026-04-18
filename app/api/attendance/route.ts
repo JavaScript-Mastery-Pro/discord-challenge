@@ -9,8 +9,6 @@ import { z } from 'zod'
 
 const AttendanceSchema = z.object({
   studentId: z.string().min(1),
-  studentName: z.string().min(1),
-  class: z.string().min(1),
   date: z.string().min(1),
   status: z.enum(['present', 'absent', 'late']),
 })
