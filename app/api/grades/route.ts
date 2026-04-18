@@ -50,10 +50,13 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('studentId')
     const subject = searchParams.get('subject')
 
-    const query: Record<string, unknown> = { teacherId: teacher._id }
-    if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
-      query.studentId = new mongoose.Types.ObjectId(studentId);
-    }
+    const query: Record<string, unknown> = { teacherId: teacher._id };
+
+  if (studentId) {
+     if (!mongoose.Types.ObjectId.isValid(studentId)) return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
+     query.studentId = new mongoose.Types.ObjectId(studentId)
+  };
+    
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
