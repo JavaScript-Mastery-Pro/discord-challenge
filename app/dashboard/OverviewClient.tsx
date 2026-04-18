@@ -189,21 +189,42 @@ export function OverviewClient() {
       const [
         studentsRes,
         assignmentsRes,
+        activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
         fetch("/api/assignments"),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
+      if (
+        !studentsRes.ok ||
+        !assignmentsRes.ok ||
+        !activeAssignmentsRes.ok ||
+        !attendanceRes.ok ||
+        !gradesRes.ok ||
+        !announcementsRes.ok
+      ) {
+        throw new Error("Failed to load dashboard data");
+      }
+
+      const [
+        students,
+        assignmentsData,
+        activeAssignmentsData,
+        attendance,
+        grades,
+        announcements,
+      ] =
         await Promise.all([
           studentsRes.json(),
           assignmentsRes.json(),
+          activeAssignmentsRes.json(),
           attendanceRes.json(),
           gradesRes.json(),
           announcementsRes.json(),
@@ -254,7 +275,7 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
@@ -316,13 +337,11 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
-        totalAssignments: Array.isArray(assignments)
-          ? assignments.length
-          : (assignments.length ?? 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        totalStudents: students.total ?? students.students?.length ?? 0,
+        totalAssignments:
+          assignmentsData.total ??
+          (Array.isArray(assignments) ? assignments.length : 0),
+        pendingAssignments: activeAssignmentsData.total ?? 0,
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,

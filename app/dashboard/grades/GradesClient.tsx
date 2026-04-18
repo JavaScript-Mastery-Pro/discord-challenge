@@ -60,7 +60,13 @@ function pct(marks: number, max: number) {
 }
 
 const GRADE_POINT: Record<string, number> = {
-  'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 5, F: 0,
+  'A+': 10,
+  A: 9,
+  'B+': 8,
+  B: 7,
+  C: 6,
+  D: 5,
+  F: 0,
 }
 
 function cgpaFromGrades(gradeList: Grade[]) {

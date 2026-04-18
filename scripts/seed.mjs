@@ -225,9 +225,45 @@ const ANNOUNCEMENTS_DATA = [
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('🔗  Connecting to MongoDB…')
-  await mongoose.connect(MONGODB_URI, { bufferCommands: false })
-  console.log('✅  Connected.\n')
+  const isAtlas = MONGODB_URI.includes('mongodb+srv://')
+  const hostMatch = MONGODB_URI.match(/@([^\/?]+)/)
+  const host = hostMatch ? hostMatch[1] : 'local or unknown host'
+
+  console.log(`🔗  Connecting to MongoDB...`)
+  if (process.env.DEBUG_DB === 'true') {
+    console.log(`[DEBUG] Target Host: ${host}`)
+    console.log(`[DEBUG] Connecting with TLS and 10s timeout...`)
+  }
+
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      bufferCommands: false,
+      tls: true,
+      serverSelectionTimeoutMS: 10000,
+    })
+    console.log('✅  Connected to MongoDB.\n')
+  } catch (err) {
+    console.error('\n❌  MongoDB Connection Failed!')
+    console.error(`    Error: ${err.message}`)
+    
+    if (err.message.includes('tls') || err.message.includes('SSL') || err.message.includes('tlsv1 alert')) {
+      console.error('\n🔍  DIAGNOSTIC (TLS/SSL Issue):')
+      console.error('    - Check if your connection permits outbound TLS over port 27017.')
+      console.error('    - Could be an anti-virus or proxy intercepting the SSL handshake.')
+    } else if (err.message.includes('timeout') || err.name === 'MongooseServerSelectionError') {
+      console.error('\n🔍  DIAGNOSTIC (Timeout Issue):')
+      if (isAtlas) {
+        console.error('    - You are using MongoDB Atlas.')
+        console.error('    - LIKELY CAUSE: Your IP address is not whitelisted.')
+        console.error('    - FIX: Go to Atlas > Network Access > Add IP Address > "0.0.0.0/0" for testing.')
+      } else {
+        console.error('    - Check if the database is running and accessible at the network address.')
+      }
+    } else if (err.message.includes('bad auth')) {
+      console.error('\n🔍  DIAGNOSTIC (Auth Issue): Check if your password contains unencoded special characters.')
+    }
+    process.exit(1)
+  }
 
   try {
     // ── Resolve teacher ──────────────────────────────────────────────────────────
@@ -350,16 +386,41 @@ async function main() {
     )
     console.log(`    ✔ ${announcements.length} announcements created.`)
 
+    // ── Verification ─────────────────────────────────────────────────────────────
+    console.log('\n🔎  Verifying inserted data…')
+    const verifyCounts = {
+      students: await Student.countDocuments({ teacherId }),
+      attendance: await Attendance.countDocuments({ teacherId }),
+      assignments: await Assignment.countDocuments({ teacherId }),
+      grades: await Grade.countDocuments({ teacherId }),
+      announcements: await Announcement.countDocuments({ teacherId }),
+    }
+    
+    if (process.env.DEBUG_DB === 'true') {
+      console.log('[DEBUG] DB Counts:', verifyCounts)
+    }
+    
+    if (!verifyCounts.students || !verifyCounts.attendance || !verifyCounts.assignments || !verifyCounts.grades || !verifyCounts.announcements) {
+      throw new Error(`Verification failed! Zeros detected in one or more collections.\nCounts: ${JSON.stringify(verifyCounts)}`)
+    }
+    console.log('    ✔ Data verified successfully.')
+
     // ── Summary ───────────────────────────────────────────────────────────────────
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('🌱  Seed complete!')
+    console.log('🌱  Data seeded successfully!')
     console.log(`    Teacher profile:  updated`)
-    console.log(`    Students:         ${students.length}`)
-    console.log(`    Attendance:       ${attendance.length} (14 days)`)
-    console.log(`    Assignments:      ${assignments.length} (todo / in_progress / submitted)`)
-    console.log(`    Grades:           ${grades.length} (Term 1 & Term 2)`)
-    console.log(`    Announcements:    ${announcements.length} (academic / events / admin / general)`)
+    console.log(`    Students:         ${verifyCounts.students}`)
+    console.log(`    Attendance:       ${verifyCounts.attendance} (14 days)`)
+    console.log(`    Assignments:      ${verifyCounts.assignments} (todo / in_progress / submitted)`)
+    console.log(`    Grades:           ${verifyCounts.grades} (Term 1 & Term 2)`)
+    console.log(`    Announcements:    ${verifyCounts.announcements} (academic / events / admin / general)`)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    
+    return
+  } catch (err) {
+    console.error('\n❌  Seed operations failed:')
+    console.error(`    ${err.message ?? err}`)
+    throw err
   } finally {
     await mongoose.disconnect()
   }
