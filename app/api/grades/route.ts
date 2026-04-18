@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const max = data.maxMarks!
     const term = data.term ?? 'Term 1'
     
-    const grade = Grade.findOneAndUpdate(
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
       { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
       { upsert: true, new: true }
