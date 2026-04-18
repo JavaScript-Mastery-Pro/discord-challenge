@@ -24,6 +24,6 @@ const AttendanceSchema = new Schema<IAttendance>(
   { timestamps: true }
 )
 
-AttendanceSchema.index({ studentId: 1, date: 1 }, { unique: true })
+AttendanceSchema.index( { teacherId: 1, studentId: 1, date: 1 }, { unique: true })
 
 export const Attendance = models.Attendance ?? model<IAttendance>('Attendance', AttendanceSchema)
