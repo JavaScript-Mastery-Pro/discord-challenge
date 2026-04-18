@@ -71,6 +71,27 @@ function cgpaFromGrades(gradeList: Grade[]) {
 
 const LINE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 function exportCsv(grades: Grade[], filename = "grades.csv") {
   const headers = [
     "Student",
@@ -368,7 +389,9 @@ export function GradesClient() {
       if (res.ok) {
         toast("Deleted", "success");
         fetchGrades();
-      } else toast("Failed to delete", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to delete grade"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     } finally {
