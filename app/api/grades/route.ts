@@ -4,6 +4,12 @@ import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
 import mongoose from "mongoose";
+import { Teacher } from '@/models/Teacher'
+
+const teacher = await Teacher.findOne({ clerkId: userId }).select('_id').lean()
+if (!teacher) {
+  return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
+}
 
 const GradeSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid studentId'),
@@ -41,7 +47,7 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('studentId')
     const subject = searchParams.get('subject')
 
-    const query: Record<string, unknown> = { teacherId: userId }
+    const query: Record<string, unknown> = { teacherId: teacher._id }
     if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
       query.studentId = new mongoose.Types.ObjectId(studentId);
     }
@@ -81,8 +87,8 @@ export async function POST(req: NextRequest) {
     const term = data.term ?? 'Term 1'
     
     const grade = await Grade.findOneAndUpdate(
-      { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
-      { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
+      { teacherId: teacher._id, studentId: new mongoose.Types.ObjectId(data.studentId), subject: data.subject, term },
+      { $set: { ...data, term, teacherId: teacher._id, grade: calcGrade(data.marks, max) } },
       { upsert: true, new: true }
     )
     return NextResponse.json(grade, { status: 201 })
