@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Student } from '@/models/Student'
+import { z } from 'zod'
 
 const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'grade', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
 
@@ -25,19 +26,25 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 })
     }
 
-    // Sanitize: only allow whitelisted fields
-    const sanitizedBody: Record<string, unknown> = {}
-    for (const key of ALLOWED_UPDATE_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
-      }
-    }
+    const StudentUpdateSchema = z.object({
+      name: z.string().min(1).optional(),
+      rollNo: z.string().min(1).optional(),
+      class: z.string().min(1).optional(),
+      email: z.string().email().optional().or(z.literal('')),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+      parentName: z.string().optional(),
+      parentPhone: z.string().optional(),
+    })
+
+    const parsed = StudentUpdateSchema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     await connectDB()
     const student = await Student.findOneAndUpdate(
       { _id: id, teacherId: userId },
-      sanitizedBody,
-      { new: true }
+      { $set: parsed.data },
+      { new: true, runValidators: true }
     )
     if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(student)

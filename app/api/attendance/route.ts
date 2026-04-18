@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
 import { z } from 'zod'
@@ -76,7 +77,12 @@ export async function GET(req: NextRequest) {
       query.date = dateRange;
     }
     if (cls) query.class = cls;
-    if (studentId) query.studentId = studentId;
+    if (studentId) {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        return NextResponse.json({ error: "Invalid studentId" }, { status: 400 });
+      }
+      query.studentId = studentId;
+    }
 
     const records = await Attendance.find(query)
       .sort({ date: -1, studentName: 1 })
