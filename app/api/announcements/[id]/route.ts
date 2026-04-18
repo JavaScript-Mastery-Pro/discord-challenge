@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Announcement } from '@/models/Announcement'
 
-const ALLOWED_FIELDS = ['title', 'content', 'body', 'audience', 'category', 'pinned', 'expiresAt']
+const ALLOWED_FIELDS = ['title', 'content', 'audience', 'category', 'pinned']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -33,6 +33,10 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       if (key in body) {
         sanitizedBody[key] = body[key]
       }
+    }
+
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No valid announcement fields provided' }, { status: 400 })
     }
 
     const announcement = await Announcement.findOneAndUpdate(
