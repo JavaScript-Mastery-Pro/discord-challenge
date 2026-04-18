@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
 import { Student } from '@/models/Student'
+import { normalizeDateOnly } from '@/lib/date'
 import { z } from 'zod'
 
 const AttendanceSchema = z.object({
@@ -32,21 +33,8 @@ export async function GET(req: NextRequest) {
 
     const query: Record<string, unknown> = { teacherId: userId };
 
-    // Helper to validate and normalize date strings to YYYY-MM-DD format
-    const normalizeDate = (dateStr: string): string | null => {
-      try {
-        // Try to parse as ISO date (YYYY-MM-DD or full ISO 8601)
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return null;
-        // Return in YYYY-MM-DD format for MongoDB string comparison
-        return d.toISOString().split("T")[0];
-      } catch {
-        return null;
-      }
-    };
-
     if (date) {
-      const normalized = normalizeDate(date);
+      const normalized = normalizeDateOnly(date);
       if (normalized) {
         query.date = normalized;
       } else {
@@ -58,7 +46,7 @@ export async function GET(req: NextRequest) {
     } else if (startDate || endDate) {
       const dateRange: Record<string, string> = {};
       if (startDate) {
-        const normalized = normalizeDate(startDate);
+        const normalized = normalizeDateOnly(startDate);
         if (normalized) dateRange.$gte = normalized;
         else
           return NextResponse.json(
@@ -67,7 +55,7 @@ export async function GET(req: NextRequest) {
           );
       }
       if (endDate) {
-        const normalized = normalizeDate(endDate);
+        const normalized = normalizeDateOnly(endDate);
         if (normalized) dateRange.$lte = normalized;
         else
           return NextResponse.json(
@@ -134,7 +122,28 @@ export async function POST(req: NextRequest) {
       ? (parsed.data as z.infer<typeof BulkSchema>)
       : [parsed.data as z.infer<typeof AttendanceSchema>]
 
-    const studentIds = [...new Set(records.map((record) => record.studentId))]
+    const normalizedRecords = records.map((record) => {
+      const normalizedDate = normalizeDateOnly(record.date)
+      if (!normalizedDate) {
+        return null
+      }
+
+      return {
+        ...record,
+        date: normalizedDate,
+      }
+    })
+
+    if (normalizedRecords.some((record) => record === null)) {
+      return NextResponse.json(
+        { error: 'Invalid date format. Use YYYY-MM-DD or ISO 8601' },
+        { status: 400 },
+      )
+    }
+
+    const safeRecords = normalizedRecords as (z.infer<typeof AttendanceSchema> & { date: string })[]
+
+    const studentIds = [...new Set(safeRecords.map((record) => record.studentId))]
     if (!studentIds.every((studentId) => mongoose.Types.ObjectId.isValid(studentId))) {
       return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 })
     }
@@ -158,7 +167,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (isBulk) {
-      const ops = records.map((record) => {
+      const ops = safeRecords.map((record) => {
         const student = studentMap.get(record.studentId)!
 
         return {
@@ -180,7 +189,7 @@ export async function POST(req: NextRequest) {
       await Attendance.bulkWrite(ops)
       return NextResponse.json({ success: true, count: ops.length })
     } else {
-      const recordData = records[0]
+      const recordData = safeRecords[0]
       const student = studentMap.get(recordData.studentId)!
       const record = await Attendance.findOneAndUpdate(
         { teacherId: userId, studentId: recordData.studentId, date: recordData.date },
