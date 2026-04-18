@@ -1,13 +1,14 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
-import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
 import { Student } from '@/models/Student'
 import { z } from 'zod'
 
+const isCanonicalObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id)
+
 const AttendanceSchema = z.object({
-  studentId: z.string().refine((id) => mongoose.isObjectIdOrHexString(id), {
+  studentId: z.string().refine((id) => isCanonicalObjectId(id), {
     message: 'Invalid studentId',
   }),
   studentName: z.string().min(1),
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
       query.date = dateRange;
     }
     if (cls) query.class = cls;
-    if (studentId && !mongoose.isObjectIdOrHexString(studentId)) {
+    if (studentId && !isCanonicalObjectId(studentId)) {
       return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
     }
     if (studentId) query.studentId = studentId;
