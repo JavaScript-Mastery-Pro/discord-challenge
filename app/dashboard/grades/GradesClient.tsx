@@ -71,6 +71,27 @@ function cgpaFromGrades(gradeList: Grade[]) {
 
 const LINE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 function exportCsv(grades: Grade[], filename = "grades.csv") {
   const headers = [
     "Student",
@@ -131,16 +152,46 @@ export function GradesClient() {
   const fetchGrades = useCallback(async () => {
     setLoading(true);
     try {
-      const [gradesRes, studentsRes] = await Promise.all([
-        fetch("/api/grades"),
-        fetch("/api/students?limit=200"),
-      ]);
+      const gradesRes = await fetch("/api/grades");
+      const firstStudentsRes = await fetch("/api/students?limit=100&page=1");
       if (!gradesRes.ok) throw new Error(`Grades: ${gradesRes.status}`);
-      if (!studentsRes.ok) throw new Error(`Students: ${studentsRes.status}`);
+      if (!firstStudentsRes.ok) {
+        throw new Error(`Students: ${firstStudentsRes.status}`);
+      }
+
       const gradesData = await gradesRes.json();
-      const studentsData = await studentsRes.json();
+      const firstStudentsData = await firstStudentsRes.json();
+      const totalPages =
+        firstStudentsData &&
+        typeof firstStudentsData === "object" &&
+        typeof firstStudentsData.pages === "number"
+          ? Math.max(1, firstStudentsData.pages)
+          : 1;
+
+      let allStudents: Student[] = firstStudentsData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/students?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) {
+                  throw new Error(`Students: ${res.status}`);
+                }
+
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        allStudents = allStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
       setGrades(Array.isArray(gradesData) ? gradesData : []);
-      setStudents(studentsData.students ?? []);
+      setStudents(allStudents);
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to load", "error");
     } finally {
@@ -227,7 +278,7 @@ export function GradesClient() {
   const comparisonData = useMemo(() => {
     const sg = gradesBySubject[activeTab] ?? [];
     return [...sg]
-      .sort((a, b) => b.marks - a.marks)
+      .sort((a, b) => pct(b.marks, b.maxMarks) - pct(a.marks, a.maxMarks))
       .slice(0, 20) // cap at 20 students for readability
       .map((g) => ({
         name: g.studentName.split(" ")[0], // first name only for axis
@@ -312,7 +363,12 @@ export function GradesClient() {
         toast(editing ? "Grade updated!" : "Grade added!", "success");
         setModalOpen(false);
         fetchGrades();
-      } else toast("Failed to save grade", "error");
+      } else {
+        toast(
+          await getErrorMessage(res, `Failed to save grade (${res.status})`),
+          "error",
+        );
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     }
@@ -327,7 +383,9 @@ export function GradesClient() {
       if (res.ok) {
         toast("Deleted", "success");
         fetchGrades();
-      } else toast("Failed to delete", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to delete grade"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     } finally {

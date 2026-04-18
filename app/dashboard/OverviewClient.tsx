@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { daysUntilDateOnly } from '@/lib/date'
 
 interface Stats {
   totalStudents: number
@@ -186,30 +187,135 @@ export function OverviewClient() {
     else setLoading(true);
     setError(null);
     try {
+      const fetchAllAssignments = async () => {
+        const parseAssignments = (
+          data: unknown,
+        ): {
+          assignments: {
+            _id: string;
+            title: string;
+            subject: string;
+            class: string;
+            deadline: string;
+            status: string;
+          }[];
+          total: number | null;
+        } => {
+          if (
+            data &&
+            typeof data === "object" &&
+            Array.isArray((data as { assignments?: unknown }).assignments)
+          ) {
+            return {
+              assignments: (data as {
+                assignments: {
+                  _id: string;
+                  title: string;
+                  subject: string;
+                  class: string;
+                  deadline: string;
+                  status: string;
+                }[];
+              }).assignments,
+              total:
+                typeof (data as { total?: unknown }).total === "number"
+                  ? (data as { total: number }).total
+                  : null,
+            };
+          }
+
+          return {
+            assignments: Array.isArray(data)
+              ? (data as {
+                  _id: string;
+                  title: string;
+                  subject: string;
+                  class: string;
+                  deadline: string;
+                  status: string;
+                }[])
+              : [],
+            total: null,
+          };
+        };
+
+        const firstRes = await fetch("/api/assignments?limit=100&page=1");
+        if (!firstRes.ok) {
+          throw new Error(`Assignments: ${firstRes.status}`);
+        }
+
+        const firstData = await firstRes.json();
+        const firstPage = parseAssignments(firstData);
+        const totalPages =
+          firstData &&
+          typeof firstData === "object" &&
+          !Array.isArray(firstData) &&
+          typeof (firstData as { pages?: unknown }).pages === "number"
+            ? Math.max(1, (firstData as { pages: number }).pages)
+            : 1;
+
+        let allAssignments = firstPage.assignments;
+
+        if (totalPages > 1) {
+          const remainingPages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) =>
+              fetch(`/api/assignments?limit=100&page=${index + 2}`).then(
+                async (res) => {
+                  if (!res.ok) {
+                    throw new Error(`Assignments: ${res.status}`);
+                  }
+
+                  return res.json();
+                },
+              ),
+            ),
+          );
+
+          allAssignments = allAssignments.concat(
+            ...remainingPages.map((page) => parseAssignments(page).assignments),
+          );
+        }
+
+        return {
+          assignments: allAssignments,
+          total: firstPage.total,
+        };
+      };
+
       const [
         studentsRes,
-        assignmentsRes,
+        assignmentsData,
+        activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
-        fetch("/api/assignments"),
+        fetchAllAssignments(),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
+      const [
+        students,
+        activeAssignmentsData,
+        attendance,
+        grades,
+        announcements,
+      ] =
         await Promise.all([
           studentsRes.json(),
-          assignmentsRes.json(),
+          activeAssignmentsRes.json(),
           attendanceRes.json(),
           gradesRes.json(),
           announcementsRes.json(),
         ]);
 
-      const assignments = assignmentsData.assignments ?? assignmentsData;
+      const assignments = assignmentsData.assignments;
+      const activeAssignments =
+        activeAssignmentsData.assignments ?? activeAssignmentsData;
 
       // ── Attendance ──
       const dateMap: Record<
@@ -254,7 +360,7 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
@@ -265,10 +371,15 @@ export function OverviewClient() {
         "Term 1",
         "Term 2",
         "Term 3",
+        "Term 4",
         "Semester 1",
         "Semester 2",
         "Semester 3",
         "Semester 4",
+        "Semester 5",
+        "Semester 6",
+        "Semester 7",
+        "Semester 8",
       ];
       const cgpaTrend = Object.entries(termMap)
         .sort(([a], [b]) => {
@@ -289,12 +400,12 @@ export function OverviewClient() {
       for (const g of grades)
         gradeCounts[g.grade || "N/A"] =
           (gradeCounts[g.grade || "N/A"] || 0) + 1;
-      const gradeDistribution = Object.entries(gradeCounts).map(
-        ([grade, count]) => ({ grade, count }),
-      );
+      const GRADE_ORDER = ["A+", "A", "B+", "B", "C", "D", "F", "N/A"];
+      const gradeDistribution = Object.entries(gradeCounts)
+        .sort(([a], [b]) => GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b))
+        .map(([grade, count]) => ({ grade, count }));
 
       // ── Upcoming deadlines ──
-      const now = Date.now();
       const upcomingDeadlines = (
         assignments as {
           _id: string;
@@ -308,21 +419,24 @@ export function OverviewClient() {
         .filter((a) => a.status === "active")
         .map((a) => ({
           ...a,
-          daysLeft: Math.ceil(
-            (new Date(a.deadline).getTime() - now) / 86400000,
-          ),
+          daysLeft: daysUntilDateOnly(a.deadline) ?? 0,
         }))
         .sort((a, b) => a.daysLeft - b.daysLeft)
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
-        totalAssignments: Array.isArray(assignments)
-          ? assignments.length
-          : (assignments.length ?? 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        totalStudents:
+          typeof students.total === "number"
+            ? students.total
+            : (students.students?.length ?? 0),
+        totalAssignments:
+          typeof assignmentsData.total === "number"
+            ? assignmentsData.total
+            : (Array.isArray(assignments) ? assignments.length : 0),
+        pendingAssignments:
+          typeof activeAssignmentsData.total === "number"
+            ? activeAssignmentsData.total
+            : (Array.isArray(activeAssignments) ? activeAssignments.length : 0),
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,

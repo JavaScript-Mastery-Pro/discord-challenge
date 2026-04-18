@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { getLocalDateInputValue } from '@/lib/date'
 
 interface Student {
   _id: string
@@ -55,6 +56,21 @@ const GRADE_COLOR: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'd
   'A+': 'success', A: 'success', 'B+': 'info', B: 'info', C: 'warning', D: 'warning', F: 'danger',
 }
 
+const TERM_ORDER = [
+  "Term 1",
+  "Term 2",
+  "Term 3",
+  "Term 4",
+  "Semester 1",
+  "Semester 2",
+  "Semester 3",
+  "Semester 4",
+  "Semester 5",
+  "Semester 6",
+  "Semester 7",
+  "Semester 8",
+];
+
 // Derive a consistent avatar color from a name string
 const AVATAR_COLORS = [
   'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300',
@@ -73,6 +89,27 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 // Mini attendance heatmap — last 5 weeks (35 days)
 function AttendanceHeatmap({ records }: { records: AttendanceRecord[] }) {
   const byDate = useMemo(() => {
@@ -87,7 +124,7 @@ function AttendanceHeatmap({ records }: { records: AttendanceRecord[] }) {
     for (let i = 34; i >= 0; i--) {
       const d = new Date(today)
       d.setDate(today.getDate() - i)
-      arr.push(d.toISOString().slice(0, 10))
+      arr.push(getLocalDateInputValue(d))
     }
     return arr
   }, [])
@@ -188,24 +225,15 @@ function StudentDrawer({
   }, [attendance])
 
   const recentGrades = useMemo(() => {
-    const SEASON_ORDER: Record<string, number> = {
-      Spring: 1,
-      Summer: 2,
-      Fall: 3,
-      Winter: 4,
-    };
     const sortedGrades = [...grades].sort((a, b) => {
-      // Parse term string (e.g., "Spring 2024") to extract season and year
-      const parseTermKey = (term: string): number => {
-        const parts = term.split(" ");
-        const season = parts[0] || "";
-        const year = parseInt(parts[1] || "0", 10);
-        const seasonVal = SEASON_ORDER[season] ?? 0;
-        return year * 100 + seasonVal; // e.g., 202401 for Spring 2024
-      };
-      const aKey = parseTermKey(a.term);
-      const bKey = parseTermKey(b.term);
-      return bKey - aKey; // Descending chronological order
+      const aIndex = TERM_ORDER.indexOf(a.term);
+      const bIndex = TERM_ORDER.indexOf(b.term);
+      if (aIndex !== -1 && bIndex !== -1) {
+        return bIndex - aIndex;
+      }
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return b.term.localeCompare(a.term);
     });
     return sortedGrades.slice(0, 6);
   }, [grades]);
@@ -513,6 +541,7 @@ export function StudentsClient() {
 
   // Class filter
   const [classFilter, setClassFilter] = useState<string>("all");
+  const [classOptions, setClassOptions] = useState<string[]>(["all"]);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -548,24 +577,79 @@ export function StudentsClient() {
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (classFilter !== "all") params.set("class", classFilter);
       const res = await fetch(`/api/students?${params}`);
+      if (!res.ok) {
+        throw new Error(`Failed to load students: ${res.status}`);
+      }
       const data = await res.json();
       setStudents(data.students ?? []);
       setTotal(data.total ?? 0);
       setPages(data.pages ?? 1);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to load students", "error");
+      setStudents([]);
+      setTotal(0);
+      setPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, classFilter]);
+  }, [page, debouncedSearch, classFilter, toast]);
+
+  const fetchClassOptions = useCallback(async () => {
+    try {
+      const firstRes = await fetch("/api/students?limit=100&page=1");
+      if (!firstRes.ok) return;
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        typeof firstData.pages === "number"
+          ? Math.max(1, firstData.pages)
+          : 1;
+
+      let allStudents: Student[] = firstData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/students?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) return { students: [] as Student[] };
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        allStudents = allStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
+      const classes = [
+        "all",
+        ...Array.from(new Set(allStudents.map((student) => student.class))).sort(),
+      ];
+
+      setClassOptions(classes);
+    } catch {
+      // Keep the existing options if this background refresh fails.
+    }
+  }, []);
 
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Unique classes for filter dropdown — derive from all loaded students on current page
-  const uniqueClasses = useMemo(() => {
-    const set = new Set(students.map((s) => s.class));
-    return ["all", ...Array.from(set).sort()];
-  }, [students]);
+  useEffect(() => {
+    fetchClassOptions();
+  }, [fetchClassOptions]);
+
+  useEffect(() => {
+    if (classFilter !== "all" && !classOptions.includes(classFilter)) {
+      setClassFilter("all");
+    }
+  }, [classFilter, classOptions]);
 
   // Sort + filter pipeline (client-side sorting, server-side filtering now handles class filter)
   const visibleStudents = useMemo(() => {
@@ -650,6 +734,7 @@ export function StudentsClient() {
       toast(editing ? "Student updated!" : "Student added!", "success");
       setModalOpen(false);
       fetchStudents();
+      fetchClassOptions();
     } else {
       let msg = "Something went wrong";
       try {
@@ -686,7 +771,10 @@ export function StudentsClient() {
         return n;
       });
       fetchStudents();
-    } else toast("Failed to delete", "error");
+      fetchClassOptions();
+    } else {
+      toast(await getErrorMessage(res, "Failed to delete student"), "error");
+    }
   };
 
   const executeBulkDelete = async () => {
@@ -709,6 +797,7 @@ export function StudentsClient() {
       );
     else toast(`${failed} deletion${failed !== 1 ? "s" : ""} failed`, "error");
     fetchStudents();
+    fetchClassOptions();
   };
 
   // Optional columns config
@@ -880,7 +969,7 @@ export function StudentsClient() {
             }}
             className="py-2 pl-3 pr-8 text-sm rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {uniqueClasses.map((c) => (
+            {classOptions.map((c) => (
               <option key={c} value={c}>
                 {c === "all" ? "All Classes" : c}
               </option>

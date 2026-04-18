@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
+import { getLocalDateInputValue } from '@/lib/date'
 
 interface Student {
   _id: string
@@ -31,6 +32,30 @@ const STATUS_BADGE: Record<AttendanceStatus, 'success' | 'danger' | 'warning'> =
   late: 'warning',
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+    if (Array.isArray(payload?.error?.formErrors) && payload.error.formErrors[0]) {
+      return payload.error.formErrors[0]
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 // Heatmap cell color based on attendance rate
 function heatColor(rate: number | null) {
   if (rate === null) return 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-600'
@@ -43,17 +68,18 @@ function heatColor(rate: number | null) {
 export function AttendanceClient() {
   const { toast } = useToast()
   const [tab, setTab] = useState<Tab>('mark')
+  const today = getLocalDateInputValue()
 
   // ── Mark tab state ──
   const [students, setStudents] = useState<Student[]>([])
   const [selectedClass, setSelectedClass] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(today)
   const [statuses, setStatuses] = useState<Record<string, AttendanceStatus>>({})
   const [saving, setSaving] = useState(false)
 
   // ── History tab state ──
   const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0])
+  const [historyDate, setHistoryDate] = useState(today)
   const [historyClass, setHistoryClass] = useState('')
   const [loadingHistory, setLoadingHistory] = useState(false)
 
@@ -74,14 +100,38 @@ export function AttendanceClient() {
       return;
     }
     try {
-      const res = await fetch(
-        `/api/students?search=${encodeURIComponent(selectedClass)}&limit=100`,
+      const firstRes = await fetch(
+        `/api/students?class=${encodeURIComponent(selectedClass)}&limit=100&page=1`,
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const classStudents = (data.students ?? []).filter(
-        (s: Student) => s.class === selectedClass,
-      );
+      if (!firstRes.ok) throw new Error(`HTTP ${firstRes.status}`);
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        typeof firstData.pages === "number"
+          ? Math.max(1, firstData.pages)
+          : 1;
+
+      let classStudents: Student[] = firstData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(
+              `/api/students?class=${encodeURIComponent(selectedClass)}&limit=100&page=${index + 2}`,
+            ).then(async (res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            }),
+          ),
+        );
+
+        classStudents = classStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
       setStudents(classStudents);
       const init: Record<string, AttendanceStatus> = {};
       for (const s of classStudents) init[s._id] = "present";
@@ -166,7 +216,7 @@ export function AttendanceClient() {
       });
       if (res.ok)
         toast(`Attendance saved for ${payload.length} students!`, "success");
-      else toast("Failed to save attendance", "error");
+      else toast(await getErrorMessage(res, "Failed to save attendance"), "error");
     } catch {
       toast("Failed to save attendance", "error");
     } finally {

@@ -1,12 +1,13 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
+import { Student } from '@/models/Student'
 import { z } from 'zod'
 
 const GradeSchema = z.object({
   studentId: z.string().min(1),
-  studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
   maxMarks: z.number().min(1).optional(),
@@ -21,7 +22,7 @@ const GradeSchema = z.object({
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
+  if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
   if (pct >= 70) return 'B+'
   if (pct >= 60) return 'B'
@@ -41,14 +42,19 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get('subject')
 
     const query: Record<string, unknown> = { teacherId: userId }
-    if (studentId) query.studentId = studentId
+    if (studentId) {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 })
+      }
+      query.studentId = studentId
+    }
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
     return NextResponse.json(grades)
   } catch (error) {
     console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -70,19 +76,52 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const max = data.maxMarks!
+    if (!mongoose.Types.ObjectId.isValid(data.studentId)) {
+      return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 })
+    }
+
+    const student = await Student.findOne({
+      _id: data.studentId,
+      teacherId: userId,
+    })
+      .select('_id name')
+      .lean()
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found for this teacher' }, { status: 400 })
+    }
+
+    const max = data.maxMarks ?? 100
     const term = data.term ?? 'Term 1'
+
+    if (data.marks > max) {
+      return NextResponse.json(
+        { error: 'marks must be less than or equal to maxMarks' },
+        { status: 400 },
+      )
+    }
     
-    const grade = Grade.findOneAndUpdate(
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
-      { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
-      { upsert: true, new: true }
+      {
+        $set: {
+          ...data,
+          studentName: student.name,
+          term,
+          teacherId: userId,
+          grade: calcGrade(data.marks, max),
+        },
+      },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
     )
     return NextResponse.json(grade, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
       console.error('POST /api/grades error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    if ((error as { code?: number }).code === 11000) {
+      return NextResponse.json({ error: 'A grade already exists for this student, subject, and term' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

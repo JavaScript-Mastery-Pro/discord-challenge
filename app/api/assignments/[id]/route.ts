@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 
-const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'dueDate', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
+const ALLOWED_UPDATE_FIELDS = ['title', 'description', 'deadline', 'subject', 'class', 'status', 'kanbanStatus', 'maxMarks']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -35,16 +35,30 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       }
     }
 
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No valid assignment fields provided' }, { status: 400 })
+    }
+
     const assignment = await Assignment.findOneAndUpdate(
-      { _id: id },
+      { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true }
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!assignment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(assignment)
   } catch (error) {
     if (error instanceof Error) {
       console.error('PUT /api/assignments/[id] error:', error.message)
+    }
+    if (error instanceof mongoose.Error.ValidationError) {
+      const firstError = Object.values(error.errors)[0]
+      return NextResponse.json(
+        { error: firstError?.message ?? 'Invalid assignment update' },
+        { status: 400 }
+      )
+    }
+    if (error instanceof mongoose.Error.CastError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -63,7 +77,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Assignment.findOneAndDelete({ _id: id })
+    const deleted = await Assignment.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })

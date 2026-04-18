@@ -25,7 +25,7 @@ const AssignmentSchema = new Schema<IAssignment>(
     deadline: { type: Date, required: true },
     status: { type: String, enum: ['active', 'closed'], default: 'active' },
     kanbanStatus: { type: String, enum: ['todo', 'in_progress', 'submitted'], default: 'todo' },
-    maxMarks: { type: Number, default: 100 },
+    maxMarks: { type: Number, default: 100, min: 1 },
   },
   { timestamps: true }
 )

@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { daysUntilDateOnly, formatDateOnly, normalizeDateOnly } from '@/lib/date'
 
 interface Assignment {
   _id: string
@@ -59,7 +60,28 @@ const COLUMNS: {
 ];
 
 function daysUntil(deadline: string) {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return daysUntilDateOnly(deadline) ?? 0
+}
+
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
 }
 
 function DeadlineBadge({ deadline }: { deadline: string }) {
@@ -170,15 +192,12 @@ function AssignmentDrawer({
               { label: "Class", value: assignment.class },
               {
                 label: "Deadline",
-                value: new Date(assignment.deadline).toLocaleDateString(
-                  "en-IN",
-                  {
-                    weekday: "short",
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  },
-                ),
+                value: formatDateOnly(assignment.deadline, "en-IN", {
+                  weekday: "short",
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                }),
               },
               { label: "Max Marks", value: String(assignment.maxMarks) },
               {
@@ -272,14 +291,52 @@ export function AssignmentsClient() {
   const fetchAssignments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/assignments?limit=100");
-      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-      const data = await res.json();
-      const raw: Assignment[] = Array.isArray(data.assignments)
-        ? data.assignments
-        : Array.isArray(data)
-          ? data
-          : [];
+      const parseAssignments = (data: unknown): Assignment[] => {
+        if (
+          data &&
+          typeof data === "object" &&
+          Array.isArray((data as { assignments?: unknown }).assignments)
+        ) {
+          return (data as { assignments: Assignment[] }).assignments
+        }
+
+        return Array.isArray(data) ? (data as Assignment[]) : []
+      }
+
+      const firstRes = await fetch("/api/assignments?limit=100&page=1");
+      if (!firstRes.ok) throw new Error(`Failed to fetch: ${firstRes.status}`);
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        !Array.isArray(firstData) &&
+        typeof (firstData as { pages?: unknown }).pages === "number"
+          ? Math.max(1, (firstData as { pages: number }).pages)
+          : 1;
+
+      let raw = parseAssignments(firstData);
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/assignments?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) {
+                  throw new Error(
+                    `Failed to fetch page ${index + 2}: ${res.status}`,
+                  );
+                }
+
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        raw = raw.concat(...remainingPages.map(parseAssignments));
+      }
+
       setAssignments(
         raw.map((a) => ({
           ...a,
@@ -344,7 +401,7 @@ export function AssignmentsClient() {
       description: a.description,
       subject: a.subject,
       class: a.class,
-      deadline: a.deadline,
+      deadline: normalizeDateOnly(a.deadline) ?? "",
       maxMarks: a.maxMarks,
     });
     setModalOpen(true);
@@ -368,7 +425,9 @@ export function AssignmentsClient() {
         );
         setModalOpen(false);
         fetchAssignments();
-      } else toast("Failed to save", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to save assignment"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     }
@@ -387,7 +446,7 @@ export function AssignmentsClient() {
       ),
     );
     try {
-      await fetch(`/api/assignments/${id}`, {
+      const res = await fetch(`/api/assignments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -395,6 +454,9 @@ export function AssignmentsClient() {
           status: col === "submitted" ? "closed" : "active",
         }),
       });
+      if (!res.ok) {
+        throw new Error(await getErrorMessage(res, `Failed to move assignment: ${res.status}`));
+      }
     } catch (error) {
       fetchAssignments();
       toast(
@@ -414,7 +476,9 @@ export function AssignmentsClient() {
       if (res.ok) {
         toast("Deleted", "success");
         fetchAssignments();
-      } else toast("Failed to delete", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to delete assignment"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     } finally {
@@ -575,6 +639,20 @@ export function AssignmentsClient() {
             Create first assignment
           </Button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 dark:border-slate-600 py-20 text-center">
+          <p className="text-gray-400 text-sm mb-2">No assignments match the current filters.</p>
+          <button
+            onClick={() => {
+              setFilterClass("all");
+              setFilterSubject("all");
+              setSearch("");
+            }}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           {COLUMNS.map((col) => {
@@ -678,7 +756,7 @@ export function AssignmentsClient() {
 
                           <p className="text-xs text-gray-400 dark:text-slate-500">
                             Due{" "}
-                            {new Date(a.deadline).toLocaleDateString("en-IN", {
+                            {formatDateOnly(a.deadline, "en-IN", {
                               day: "numeric",
                               month: "short",
                             })}
