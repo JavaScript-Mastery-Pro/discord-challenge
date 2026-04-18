@@ -14,7 +14,7 @@ export interface IAnnouncement {
 
 const AnnouncementSchema = new Schema<IAnnouncement>(
   {
-    teacherId: { type: String, required: true, index: true },
+    teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
     title: { type: String, required: true },
     content: { type: String, required: true },
     audience: { type: String, default: 'All' },
