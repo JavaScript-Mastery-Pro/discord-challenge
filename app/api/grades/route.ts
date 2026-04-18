@@ -5,7 +5,7 @@ import { Grade } from '@/models/Grade'
 import { z } from 'zod'
 
 const GradeSchema = z.object({
-  studentId: z.string().min(1),
+  studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid studentId'),
   studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
