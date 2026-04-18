@@ -4,7 +4,8 @@ export interface IAttendance {
   _id: mongoose.Types.ObjectId
   teacherId: mongoose.Types.ObjectId
   studentId: mongoose.Types.ObjectId
-  // removed the class and studentName
+  // removed the studentName
+  class: string
   date: string
   status: 'present' | 'absent' | 'late'
   createdAt: Date
@@ -17,6 +18,7 @@ const AttendanceSchema = new Schema<IAttendance>(
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
     // revome the studentName because If student name changes → data becomes inconsistent
     // remove because  Data inconsistency
+     class: { type: String, required: true, trim: true },
     date: { type: Date, required: true },
     status: { type: String, enum: ['present', 'absent', 'late'], required: true },
   },
