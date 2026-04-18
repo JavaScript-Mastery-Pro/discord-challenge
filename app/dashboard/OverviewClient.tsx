@@ -189,27 +189,68 @@ export function OverviewClient() {
       const [
         studentsRes,
         assignmentsRes,
+        activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
         fetch("/api/assignments"),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
+      const [
+        studentsData,
+        assignmentsData,
+        activeAssignmentsData,
+        attendance,
+        grades,
+        announcements,
+      ] =
         await Promise.all([
           studentsRes.json(),
           assignmentsRes.json(),
+          activeAssignmentsRes.json(),
           attendanceRes.json(),
           gradesRes.json(),
           announcementsRes.json(),
         ]);
 
-      const assignments = assignmentsData.assignments ?? assignmentsData;
+      const studentsList = Array.isArray(studentsData?.students)
+        ? studentsData.students
+        : Array.isArray(studentsData)
+          ? studentsData
+          : [];
+
+      const assignmentsList = Array.isArray(assignmentsData?.assignments)
+        ? assignmentsData.assignments
+        : Array.isArray(assignmentsData)
+          ? assignmentsData
+          : [];
+
+      const totalStudents =
+        typeof studentsData?.total === "number"
+          ? studentsData.total
+          : studentsList.length;
+
+      const totalAssignments =
+        typeof assignmentsData?.total === "number"
+          ? assignmentsData.total
+          : assignmentsList.length;
+
+      const pendingAssignments =
+        typeof activeAssignmentsData?.total === "number"
+          ? activeAssignmentsData.total
+          : Array.isArray(activeAssignmentsData?.assignments)
+            ? activeAssignmentsData.assignments.length
+            : Array.isArray(activeAssignmentsData)
+              ? activeAssignmentsData.length
+              : assignmentsList.filter(
+                (a: { status: string }) => a.status === "active",
+              ).length;
 
       // ── Attendance ──
       const dateMap: Record<
@@ -296,7 +337,7 @@ export function OverviewClient() {
       // ── Upcoming deadlines ──
       const now = Date.now();
       const upcomingDeadlines = (
-        assignments as {
+        assignmentsList as {
           _id: string;
           title: string;
           subject: string;
@@ -316,13 +357,9 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
-        totalAssignments: Array.isArray(assignments)
-          ? assignments.length
-          : (assignments.length ?? 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        totalStudents,
+        totalAssignments,
+        pendingAssignments,
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,
@@ -334,7 +371,7 @@ export function OverviewClient() {
         gradeDistribution,
         upcomingDeadlines,
         recentAnnouncements: announcements.slice(0, 5),
-        recentStudents: students.students?.slice(0, 5) ?? [],
+        recentStudents: studentsList.slice(0, 5),
       });
       setLastRefreshed(new Date());
     } catch (err) {
@@ -701,13 +738,12 @@ export function OverviewClient() {
               {stats.upcomingDeadlines.map((a) => (
                 <li key={a._id} className="flex items-start gap-3">
                   <div
-                    className={`shrink-0 mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      a.daysLeft < 0
+                    className={`shrink-0 mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold ${a.daysLeft < 0
                         ? "bg-red-100 dark:bg-red-900/20 text-red-600"
                         : a.daysLeft <= 2
                           ? "bg-amber-100 dark:bg-amber-900/20 text-amber-600"
                           : "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600"
-                    }`}
+                      }`}
                   >
                     {a.daysLeft < 0 ? "!" : a.daysLeft}
                   </div>
