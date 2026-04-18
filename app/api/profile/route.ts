@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Teacher } from "@/models/Teacher";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  void req;
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
