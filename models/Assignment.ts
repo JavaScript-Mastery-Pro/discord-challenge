@@ -22,7 +22,10 @@ const AssignmentSchema = new Schema<IAssignment>(
     description: { type: String, default: '', maxlength: 1000 },
     subject: {enum: ['Mathematics', 'Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks']},
     class: { enum: ['CS-A', 'CS-B'] },
-    deadline: { type: Date, required: true },
+    deadline: { validate: {
+      validator: (value: Date) => value > new Date(),
+      message: 'Deadline must be in the future'
+    } },
     status: { type: String, enum: ['active', 'closed'], default: 'active' },
     kanbanStatus: { type: String, enum: ['todo', 'in_progress', 'submitted'], default: 'todo' },
     maxMarks: { type: Number, default: 100 },
