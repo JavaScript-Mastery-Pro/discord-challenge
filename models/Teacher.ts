@@ -35,8 +35,8 @@ const TeacherSchema = new Schema<ITeacher>(
         validator: (arr: string[]) => arr.every(s => typeof s === 'string' && s.trim().length > 0),
         message: 'Subjects must be non-empty strings',
       }, },
-    phone: { type: String, default: "" },
-    bio: { type: String, default: "" },
+    phone: { type: String, default: "", trim: true },
+    bio: { type: String, default: "", trim: true },
     academicHistory: {
       type: [
         {
