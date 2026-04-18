@@ -257,7 +257,7 @@ export function GradesClient() {
   const comparisonData = useMemo(() => {
     const sg = gradesBySubject[activeTab] ?? [];
     return [...sg]
-      .sort((a, b) => b.marks - a.marks)
+      .sort((a, b) => pct(b.marks, b.maxMarks) - pct(a.marks, a.maxMarks))
       .slice(0, 20) // cap at 20 students for readability
       .map((g) => ({
         name: g.studentName.split(" ")[0], // first name only for axis
