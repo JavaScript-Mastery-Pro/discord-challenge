@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
 
     if (!teacher) {
       const clerkUser = await currentUser()
+      if (!clerkUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
       const created = await Teacher.create({
         clerkId: userId,
         name: clerkUser?.fullName ?? '',
