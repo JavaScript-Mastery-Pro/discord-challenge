@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error) {
       console.error('POST /api/grades error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+
   }
 }
