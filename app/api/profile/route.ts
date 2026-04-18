@@ -3,15 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Teacher } from '@/models/Teacher'
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const queryUserId = searchParams.get('userId')
-
-  let userId: string | null = queryUserId
-  if (!userId) {
-    const session = await auth()
-    userId = session.userId
-  }
+export async function GET() {
+  const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
