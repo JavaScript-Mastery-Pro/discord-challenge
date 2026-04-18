@@ -1,107 +1,129 @@
-'use client'
+"use client";
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useForm } from 'react-hook-form'
-import { useUser } from '@clerk/nextjs'
-import { Button } from '@/components/ui/Button'
-import { useToast } from '@/components/ui/Toast'
-import { CardSkeleton } from '@/components/ui/Skeleton'
+import { useForm } from "react-hook-form";
+import { useUser } from "@clerk/nextjs";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { formatZodError } from "@/lib/utils";
 
 interface AcademicHistoryEntry {
-  year: string
-  title: string
-  description?: string
+  year: string;
+  title: string;
+  description?: string;
 }
 
 interface TeacherProfile {
-  name: string
-  email: string
-  department: string
-  subjects: string[]
-  phone: string
-  bio: string
-  academicHistory: AcademicHistoryEntry[]
-  createdAt?: string
+  name: string;
+  email: string;
+  department: string;
+  subjects: string[];
+  phone: string;
+  bio: string;
+  academicHistory: AcademicHistoryEntry[];
+  createdAt?: string;
 }
 
 interface FormData {
-  name: string
-  department: string
-  subjectsRaw: string
-  phone: string
-  bio: string
+  name: string;
+  department: string;
+  subjectsRaw: string;
+  phone: string;
+  bio: string;
 }
 
 interface TimelineFormData {
-  year: string
-  title: string
-  description: string
+  year: string;
+  title: string;
+  description: string;
 }
 
 export function ProfileClient() {
-  const { user } = useUser()
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState<TeacherProfile | null>(null)
-  const [editing, setEditing] = useState(false)
-  const [avatarUploading, setAvatarUploading] = useState(false)
-  const [timelineModalOpen, setTimelineModalOpen] = useState(false)
-  const [editingEntry, setEditingEntry] = useState<{ index: number; entry: AcademicHistoryEntry } | null>(null)
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<TeacherProfile | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [savingHistory, setSavingHistory] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [timelineModalOpen, setTimelineModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<{
+    index: number;
+    entry: AcademicHistoryEntry;
+  } | null>(null);
   const [deleteEntryIndex, setDeleteEntryIndex] = useState<number | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<FormData>()
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<FormData>();
   const {
     register: tlRegister,
     handleSubmit: tlHandleSubmit,
     reset: tlReset,
     formState: { isSubmitting: tlSubmitting, errors: tlErrors },
-  } = useForm<TimelineFormData>()
+  } = useForm<TimelineFormData>();
 
   useEffect(() => {
     async function load() {
-      setLoading(true)
+      setLoading(true);
       try {
-        const res = await fetch('/api/profile')
-        if (!res.ok) throw new Error(`Failed to load profile: ${res.status}`)
-        const data = await res.json()
-        setProfile(data)
+        const res = await fetch("/api/profile");
+        if (!res.ok) throw new Error(`Failed to load profile: ${res.status}`);
+        const data = await res.json();
+        setProfile(data);
         reset({
           name: data.name,
           department: data.department,
-          subjectsRaw: (data.subjects ?? []).join(', '),
+          subjectsRaw: (data.subjects ?? []).join(", "),
           phone: data.phone,
           bio: data.bio,
-        })
+        });
       } catch (err) {
-        toast(err instanceof Error ? err.message : 'Failed to load profile', 'error')
+        toast(
+          err instanceof Error ? err.message : "Failed to load profile",
+          "error",
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    load()
-  }, [reset, toast])
+    load();
+  }, [reset, toast]);
 
   // ── Avatar upload via Clerk ──
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !user) return
-    if (!file.type.startsWith('image/')) { toast('Please select an image file', 'error'); return }
-    if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5 MB', 'error'); return }
-
-    setAvatarUploading(true)
-    try {
-      await user.setProfileImage({ file })
-      toast('Avatar updated!', 'success')
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to upload avatar', 'error')
-    } finally {
-      setAvatarUploading(false)
-      e.target.value = ''
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith("image/")) {
+      toast("Please select an image file", "error");
+      return;
     }
-  }
+    if (file.size > 5 * 1024 * 1024) {
+      toast("Image must be under 5 MB", "error");
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      await user.setProfileImage({ file });
+      toast("Avatar updated!", "success");
+    } catch (err) {
+      toast(
+        err instanceof Error ? err.message : "Failed to upload avatar",
+        "error",
+      );
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = "";
+    }
+  };
 
   // ── Profile form submit ──
   const onSubmit = async (data: FormData) => {
@@ -111,27 +133,32 @@ export function ProfileClient() {
       .map((s) => s.trim())
       .filter(Boolean);
     const subjects = Array.from(new Set(subjectsArray));
+    const payload: any = {};
+
+    if (data.name.trim()) payload.name = data.name.trim();
+    if (data.department.trim()) payload.department = data.department.trim();
+    if (subjects.length) payload.subjects = subjects;
+    if (data.phone.trim()) payload.phone = data.phone.trim();
+    if (data.bio.trim()) payload.bio = data.bio.trim();
+
     try {
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          department: data.department,
-          subjects,
-          phone: data.phone,
-          bio: data.bio,
-          academicHistory: profile?.academicHistory ?? [],
-        }),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setProfile(updated);
-        toast("Profile updated!", "success");
-        setEditing(false);
-      } else {
-        toast("Failed to update profile", "error");
+      const result = await res.json();
+      if (!res.ok) {
+        const submitErrors = formatZodError(result.error);
+        submitErrors.forEach((error) => {
+          toast(error, "error");
+        });
+        return;
       }
+
+      setProfile(result);
+      toast("Profile updated!", "success");
+      setEditing(false);
     } catch (error) {
       toast(
         `Network error: ${error instanceof Error ? error.message : "Failed to update profile"}`,
@@ -150,7 +177,6 @@ export function ProfileClient() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...profile,
           academicHistory: history,
         }),
       });
@@ -173,32 +199,42 @@ export function ProfileClient() {
   };
 
   const openAddEntry = () => {
-    setEditingEntry(null)
-    tlReset({ year: String(new Date().getFullYear()), title: '', description: '' })
-    setTimelineModalOpen(true)
-  }
+    setEditingEntry(null);
+    tlReset({
+      year: String(new Date().getFullYear()),
+      title: "",
+      description: "",
+    });
+    setTimelineModalOpen(true);
+  };
 
   const openEditEntry = (index: number, entry: AcademicHistoryEntry) => {
-    setEditingEntry({ index, entry })
-    tlReset({ year: entry.year, title: entry.title, description: entry.description ?? '' })
-    setTimelineModalOpen(true)
-  }
+    setEditingEntry({ index, entry });
+    tlReset({
+      year: entry.year,
+      title: entry.title,
+      description: entry.description ?? "",
+    });
+    setTimelineModalOpen(true);
+  };
 
   const onTimelineSubmit = async (data: TimelineFormData) => {
-    const current = [...(profile?.academicHistory ?? [])]
+    const current = [...(profile?.academicHistory ?? [])];
     if (editingEntry !== null) {
-      current[editingEntry.index] = data
+      current[editingEntry.index] = data;
     } else {
-      current.push(data)
+      current.push(data);
     }
     // sort descending by year
-    current.sort((a, b) => b.year.localeCompare(a.year))
+    current.sort((a, b) => Number(b.year) - Number(a.year));
+    setSavingHistory(true);
     const success = await saveHistory(current);
+    setSavingHistory(false);
     if (success) {
       toast("Academic history saved!", "success");
       setTimelineModalOpen(false);
     }
-  }
+  };
 
   const executeDeleteEntry = async () => {
     if (deleteEntryIndex === null) return;
@@ -216,7 +252,7 @@ export function ProfileClient() {
         <CardSkeleton />
         <CardSkeleton />
       </div>
-    )
+    );
   }
 
   return (
@@ -395,7 +431,9 @@ export function ProfileClient() {
                 Subjects (comma-separated)
               </label>
               <input
-                {...register("subjectsRaw")}
+                {...register("subjectsRaw", {
+                  validate: (val) => val.trim().length > 0 || "Required",
+                })}
                 className="input w-full"
                 placeholder="Mathematics, Physics, Programming"
               />
@@ -469,7 +507,12 @@ export function ProfileClient() {
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             Academic History
           </h3>
-          <Button size="sm" variant="outline" onClick={openAddEntry}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={openAddEntry}
+            disabled={savingHistory}
+          >
             <svg
               className="h-4 w-4"
               fill="none"
