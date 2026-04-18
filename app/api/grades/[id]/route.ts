@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 
     await connectDB()
     const grade = await Grade.findOneAndUpdate(
-      { _id: id },
+      { _id: id, teacherId: userId },
       sanitizedBody,
       { new: true }
     )
@@ -56,7 +56,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   try {
     const { id } = await ctx.params
     await connectDB()
-    const deleted = await Grade.findOneAndDelete({ _id: id })
+    const deleted = await Grade.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Grade not found' }, { status: 404 })
