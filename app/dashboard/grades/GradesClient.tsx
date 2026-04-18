@@ -56,6 +56,7 @@ function sortTerms(terms: string[]) {
 }
 
 function pct(marks: number, max: number) {
+  if (max <= 0) return 0;
   return Math.round((marks / max) * 100);
 }
 
