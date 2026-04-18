@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Student } from '@/models/Student'
+import { Attendance } from '@/models/Attendance'
+import { Grade } from '@/models/Grade'
 
 const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'grade', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
 
@@ -70,6 +72,11 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     if (!deleted) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
+
+    await Promise.all([
+      Attendance.deleteMany({ teacherId: userId, studentId: id }),
+      Grade.deleteMany({ teacherId: userId, studentId: id }),
+    ])
     
     return NextResponse.json({ success: true })
   } catch (error) {
