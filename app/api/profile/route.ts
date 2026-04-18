@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest) {
           (entry: unknown) =>
             entry !== null &&
             typeof entry === 'object' &&
-            typeof (entry as Record<string, unknown>).year === 'string' &&
+            typeof (entry as Record<string, unknown>).year === 'string'  &&
             typeof (entry as Record<string, unknown>).title === 'string',
         )
       ) {
@@ -97,8 +97,8 @@ export async function PUT(req: NextRequest) {
       subjects: subjects.map((s) => s.trim()),
     };
     if (department !== undefined) updatePayload.department = department
-    if (phone !== undefined) updatePayload.phone = phone
-    if (bio !== undefined) updatePayload.bio = bio
+    if (phone !== undefined) updatePayload.phone = phone.trim()
+    if (bio !== undefined) updatePayload.bio = bio.trim()
     if (academicHistory !== undefined) updatePayload.academicHistory = academicHistory
 
     const teacher = await Teacher.findOneAndUpdate(
