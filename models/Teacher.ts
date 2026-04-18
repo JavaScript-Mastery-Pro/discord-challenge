@@ -29,7 +29,12 @@ const TeacherSchema = new Schema<ITeacher>(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Invalid email format'], },
     department: { type: String, default: "", trim: true },
-    subjects: { type: [String], default: [] },
+    subjects: {  type: [String],
+      default: [],
+      validate: {
+        validator: (arr: string[]) => arr.every(s => typeof s === 'string' && s.trim().length > 0),
+        message: 'Subjects must be non-empty strings',
+      }, },
     phone: { type: String, default: "" },
     bio: { type: String, default: "" },
     academicHistory: {
