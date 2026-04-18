@@ -9,10 +9,10 @@ const GradeSchema = z.object({
   studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
-  maxMarks: z.number().min(1).optional(),
+  maxMarks: z.number().min(1).default(100),
   term: z.string().optional(),
 }).refine(
-  (data) => !data.maxMarks || data.marks <= data.maxMarks,
+  (data) => data.marks <= data.maxMarks,
   {
     message: 'marks must be less than or equal to maxMarks',
     path: ['marks'],
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const maxMarks = data.maxMarks ?? 100
+    const maxMarks = data.maxMarks
     const term = data.term ?? 'Term 1'
     
     const grade = await Grade.findOneAndUpdate(
