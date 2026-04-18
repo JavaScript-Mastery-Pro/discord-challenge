@@ -18,7 +18,7 @@ const AttendanceSchema = new Schema<IAttendance>(
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
     studentName: { type: String, required: true },
     class: { type: String, required: true },
-    date: { type: String, required: true },
+    date: { type: Date, required: true },
     status: { type: String, enum: ['present', 'absent', 'late'], required: true },
   },
   { timestamps: true }
