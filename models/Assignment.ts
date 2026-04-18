@@ -17,7 +17,7 @@ export interface IAssignment {
 
 const AssignmentSchema = new Schema<IAssignment>(
   {
-    teacherId: { type: String, required: true, index: true },
+    teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
     title: { type: String, required: true },
     description: { type: String, default: '' },
     subject: { type: String, required: true },
