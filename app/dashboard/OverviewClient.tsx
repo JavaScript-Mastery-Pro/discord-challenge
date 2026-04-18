@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { CardSkeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { getGradePoint } from '@/lib/grading'
 
 interface Stats {
   totalStudents: number
@@ -289,18 +290,9 @@ export function OverviewClient() {
         }));
 
       // ── CGPA trend ──
-      const GRADE_POINT: Record<string, number> = {
-        "A+": 10,
-        A: 9,
-        "B+": 8,
-        B: 7,
-        C: 6,
-        D: 4,
-        F: 0,
-      };
       const termMap: Record<string, number[]> = {};
       for (const g of grades) {
-        (termMap[g.term] ??= []).push(GRADE_POINT[g.grade] ?? 0);
+        (termMap[g.term] ??= []).push(getGradePoint(g.grade));
       }
       const TERM_ORDER = [
         "Term 1",
@@ -739,10 +731,10 @@ export function OverviewClient() {
                 <li key={a._id} className="flex items-start gap-3">
                   <div
                     className={`shrink-0 mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold ${a.daysLeft < 0
-                        ? "bg-red-100 dark:bg-red-900/20 text-red-600"
-                        : a.daysLeft <= 2
-                          ? "bg-amber-100 dark:bg-amber-900/20 text-amber-600"
-                          : "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600"
+                      ? "bg-red-100 dark:bg-red-900/20 text-red-600"
+                      : a.daysLeft <= 2
+                        ? "bg-amber-100 dark:bg-amber-900/20 text-amber-600"
+                        : "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600"
                       }`}
                   >
                     {a.daysLeft < 0 ? "!" : a.daysLeft}

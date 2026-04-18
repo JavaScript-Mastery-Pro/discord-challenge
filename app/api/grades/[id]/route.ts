@@ -3,19 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
+import { calculateLetterGrade } from '@/lib/grading'
 
 const ALLOWED_UPDATE_FIELDS = ['studentId', 'studentName', 'subject', 'term', 'marks', 'maxMarks']
-
-function calcGrade(marks: number, max: number): string {
-  const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
-  if (pct >= 80) return 'A'
-  if (pct >= 70) return 'B+'
-  if (pct >= 60) return 'B'
-  if (pct >= 50) return 'C'
-  if (pct >= 40) return 'D'
-  return 'F'
-}
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -91,7 +81,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       {
         ...sanitizedBody,
         maxMarks: nextMaxMarks,
-        grade: calcGrade(nextMarks, nextMaxMarks),
+        grade: calculateLetterGrade(nextMarks, nextMaxMarks),
       },
       { new: true, runValidators: true, context: 'query' }
     )

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { calculateCgpaFromGrades, getGradePoint } from '@/lib/grading'
 
 interface Grade {
   _id: string
@@ -57,16 +58,6 @@ function sortTerms(terms: string[]) {
 
 function pct(marks: number, max: number) {
   return Math.round((marks / max) * 100);
-}
-
-const GRADE_POINT: Record<string, number> = {
-  'A+': 10, A: 9, 'B+': 8, B: 7, C: 6, D: 5, F: 0,
-}
-
-function cgpaFromGrades(gradeList: Grade[]) {
-  if (!gradeList.length) return null
-  const total = gradeList.reduce((s, g) => s + (GRADE_POINT[g.grade] ?? 0), 0)
-  return (total / gradeList.length).toFixed(2)
 }
 
 const LINE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
@@ -211,9 +202,9 @@ export function GradesClient() {
         const avg =
           sg.length > 0
             ? Math.round(
-                sg.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) /
-                  sg.length,
-              )
+              sg.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) /
+              sg.length,
+            )
             : 0;
         return {
           subject: subject.length > 10 ? subject.slice(0, 10) + "…" : subject,
@@ -243,7 +234,7 @@ export function GradesClient() {
     const sg = grades.filter((g) => g.studentId === cgpaStudentId);
     return {
       grades: sg,
-      cgpa: cgpaFromGrades(sg),
+      cgpa: calculateCgpaFromGrades(sg),
       name: students.find((s) => s._id === cgpaStudentId)?.name ?? "",
     };
   }, [cgpaStudentId, grades, students]);
@@ -339,9 +330,9 @@ export function GradesClient() {
   const activeAvg =
     activeGrades.length > 0
       ? Math.round(
-          activeGrades.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) /
-            activeGrades.length,
-        )
+        activeGrades.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) /
+        activeGrades.length,
+      )
       : 0;
 
   const activeFilters =
@@ -364,11 +355,10 @@ export function GradesClient() {
               <button
                 key={id}
                 onClick={() => setChartView(id)}
-                className={`shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  chartView === id
+                className={`shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${chartView === id
                     ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
                     : "border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -673,7 +663,7 @@ export function GradesClient() {
                         </Badge>
                       </td>
                       <td className="px-4 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400">
-                        {GRADE_POINT[g.grade] ?? 0}
+                        {getGradePoint(g.grade)}
                       </td>
                     </tr>
                   ))}
@@ -792,19 +782,17 @@ export function GradesClient() {
                 <button
                   key={subject}
                   onClick={() => setActiveTab(subject)}
-                  className={`shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === subject
+                  className={`shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === subject
                       ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
                       : "border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
-                  }`}
+                    }`}
                 >
                   {subject}
                   <span
-                    className={`ml-2 text-xs rounded-full px-1.5 py-0.5 ${
-                      activeTab === subject
+                    className={`ml-2 text-xs rounded-full px-1.5 py-0.5 ${activeTab === subject
                         ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
                         : "bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
-                    }`}
+                      }`}
                   >
                     {gradesBySubject[subject]?.length ?? 0}
                   </span>
@@ -835,7 +823,7 @@ export function GradesClient() {
                   <span>
                     CGPA avg:{" "}
                     <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                      {cgpaFromGrades(activeGrades) ?? "—"}
+                      {calculateCgpaFromGrades(activeGrades) ?? "—"}
                     </span>
                   </span>
                   <button
