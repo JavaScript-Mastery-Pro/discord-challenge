@@ -20,6 +20,7 @@ const GradeSchema = z.object({
 )
 
 function calcGrade(marks: number, max: number): string {
+  if (max <= 0) return 'F'
   const pct = (marks / max) * 100
   if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
