@@ -17,10 +17,10 @@ export interface IStudent {
 
 const StudentSchema = new Schema<IStudent>(
   {
-    teacherId: { type: String, required: true, index: true },
-    name: { type: String, required: true, trim: true },
-    rollNo: { type: String, required: true, trim: true,  uppercase: true, },
-    class: { type: String, required: true, trime: true },
+    teacherId: { type: String, required: true, index: true, minlength: 1 },
+    name: { type: String, required: true, trim: true, minlength: 1 },
+    rollNo: { type: String, required: true, trim: true,  uppercase: true,minlength: 1 },
+    class: { type: String, required: true, trime: true,minlength: 1 },
     email: {  type: String,
       default: '',
       trim: true,
