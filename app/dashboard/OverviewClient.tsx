@@ -254,7 +254,7 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
