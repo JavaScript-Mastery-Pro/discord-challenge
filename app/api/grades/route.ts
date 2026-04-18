@@ -94,6 +94,13 @@ export async function POST(req: NextRequest) {
 
     const max = data.maxMarks ?? 100
     const term = data.term ?? 'Term 1'
+
+    if (data.marks > max) {
+      return NextResponse.json(
+        { error: 'marks must be less than or equal to maxMarks' },
+        { status: 400 },
+      )
+    }
     
     const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
