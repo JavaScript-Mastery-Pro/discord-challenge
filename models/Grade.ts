@@ -18,7 +18,7 @@ const GradeSchema = new Schema<IGrade>(
   {
     teacherId: { type: Schema.Types.ObjectId, ref: "Teacher", required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
-    studentName: { type: String, required: true },
+    // removes the studentName because can cause- data inconsistency
     subject: { type: String, required: true },
     marks: {
       type: Number,
