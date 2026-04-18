@@ -18,10 +18,10 @@ export interface IAssignment {
 const AssignmentSchema = new Schema<IAssignment>(
   {
     teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
-    title: { type: String, required: true },
-    description: { type: String, default: '' },
-    subject: { type: String, required: true },
-    class: { type: String, required: true },
+    title: {type: String, required: true, trim: true, minlength: 3},
+    description: { type: String, default: '', maxlength: 1000 },
+    subject: {enum: ['Mathematics', 'Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks']},
+    class: { enum: ['CS-A', 'CS-B'] },
     deadline: { type: Date, required: true },
     status: { type: String, enum: ['active', 'closed'], default: 'active' },
     kanbanStatus: { type: String, enum: ['todo', 'in_progress', 'submitted'], default: 'todo' },
