@@ -8,7 +8,7 @@ const ALLOWED_UPDATE_FIELDS = ['marks', 'maxMarks']
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
+  if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
   if (pct >= 70) return 'B+'
   if (pct >= 60) return 'B'
