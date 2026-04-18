@@ -40,9 +40,9 @@ const TeacherSchema = new Schema<ITeacher>(
     academicHistory: {
       type: [
         {
-          year: { type: String, required: true },
-          title: { type: String, required: true },
-          description: { type: String },
+          year: { type: String, required: true, trim: true },
+          title: { type: String, required: true, trim: true },
+          description: { type: String, trim: true },
         },
       ],
       default: [],
