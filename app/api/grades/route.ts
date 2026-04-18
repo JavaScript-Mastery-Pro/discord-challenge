@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
+import mongoose from "mongoose";
 
 const GradeSchema = z.object({
   studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid studentId'),
@@ -41,7 +42,9 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get('subject')
 
     const query: Record<string, unknown> = { teacherId: userId }
-    if (studentId) query.studentId = studentId
+    if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
+      query.studentId = new mongoose.Types.ObjectId(studentId);
+    }
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
