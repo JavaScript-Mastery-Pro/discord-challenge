@@ -24,6 +24,16 @@ const AttendanceSchema = new Schema<IAttendance>(
   { timestamps: true }
 )
 
-AttendanceSchema.index( { teacherId: 1, studentId: 1, date: 1 }, { unique: true })
+// existing uniqueness constraint
+AttendanceSchema.index({ studentId: 1, date: 1 }, { unique: true })
+
+// NEW: optimize teacher dashboard queries
+AttendanceSchema.index({ teacherId: 1, date: 1 })
+
+// NEW: optimize class-wise filtering
+AttendanceSchema.index({ teacherId: 1, class: 1 })
+
+// NEW: optimize status filtering (present/absent/late)
+AttendanceSchema.index({ teacherId: 1, status: 1 })
 
 export const Attendance = models.Attendance ?? model<IAttendance>('Attendance', AttendanceSchema)
