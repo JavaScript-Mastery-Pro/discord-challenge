@@ -6,7 +6,7 @@ import { Student } from '@/models/Student'
 import { Attendance } from '@/models/Attendance'
 import { Grade } from '@/models/Grade'
 
-const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'grade', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
+const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -33,6 +33,10 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       if (key in body) {
         sanitizedBody[key] = body[key]
       }
+    }
+
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No valid student fields provided' }, { status: 400 })
     }
 
     await connectDB()
