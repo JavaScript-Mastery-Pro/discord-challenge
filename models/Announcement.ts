@@ -2,7 +2,7 @@ import mongoose, { Schema, model, models } from "mongoose";
 
 export interface IAnnouncement {
   _id: mongoose.Types.ObjectId;
-  teacherId: string;
+  teacherId: mongoose.Types.ObjectId;
   title: string;
   content: string;
   audience: string;
@@ -15,13 +15,14 @@ export interface IAnnouncement {
 const AnnouncementSchema = new Schema<IAnnouncement>(
   {
     teacherId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "Teacher",
       required: true,
       index: true,
     },
     title: { type: String, required: true, trim: true, minlength: 3 },
     content: { type: String, required: true, trim: true, minlength: 5 },
-    audience: { type: String, enum: ["All", "CS-A", "CS-B"], default: "All" },
+    audience: { type: String, default: "All", trim: true },
     category: {
       type: String,
       enum: ["academic", "events", "admin", "general"],
