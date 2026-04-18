@@ -1,12 +1,15 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
-import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
+import { Student } from '@/models/Student'
 import { z } from 'zod'
 
+// Use strict 24-hex ObjectId checks to reject 12-byte non-hex strings.
+const isCanonicalObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id)
+
 const AttendanceSchema = z.object({
-  studentId: z.string().refine((id) => mongoose.Types.ObjectId.isValid(id), {
+  studentId: z.string().refine((id) => isCanonicalObjectId(id), {
     message: 'Invalid studentId',
   }),
   studentName: z.string().min(1),
@@ -79,7 +82,7 @@ export async function GET(req: NextRequest) {
       query.date = dateRange;
     }
     if (cls) query.class = cls;
-    if (studentId && !mongoose.Types.ObjectId.isValid(studentId)) {
+    if (studentId && !isCanonicalObjectId(studentId)) {
       return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
     }
     if (studentId) query.studentId = studentId;
@@ -130,6 +133,21 @@ export async function POST(req: NextRequest) {
       );
 
     if (isBulk) {
+      const studentIds = [
+        ...new Set(
+          (parsed.data as z.infer<typeof BulkSchema>).map(
+            (record) => record.studentId,
+          ),
+        ),
+      ];
+      const ownedCount = await Student.countDocuments({
+        _id: { $in: studentIds },
+        teacherId: userId,
+      });
+      if (ownedCount !== studentIds.length) {
+        return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
+      }
+
       const ops = (parsed.data as z.infer<typeof BulkSchema>).map((record) => ({
         updateOne: {
           filter: { teacherId: userId, studentId: record.studentId, date: record.date },
@@ -140,9 +158,25 @@ export async function POST(req: NextRequest) {
       await Attendance.bulkWrite(ops)
       return NextResponse.json({ success: true, count: ops.length })
     } else {
+      const parsedRecord = parsed.data as z.infer<typeof AttendanceSchema>;
+      const student = await Student.exists({
+        _id: parsedRecord.studentId,
+        teacherId: userId,
+      });
+      if (!student) {
+        return NextResponse.json(
+          { error: 'Student not found or access denied' },
+          { status: 403 },
+        );
+      }
+
       const record = await Attendance.findOneAndUpdate(
-        { teacherId: userId, studentId: (parsed.data as z.infer<typeof AttendanceSchema>).studentId, date: (parsed.data as z.infer<typeof AttendanceSchema>).date },
-        { $set: { ...(parsed.data as z.infer<typeof AttendanceSchema>), teacherId: userId } },
+        {
+          teacherId: userId,
+          studentId: parsedRecord.studentId,
+          date: parsedRecord.date,
+        },
+        { $set: { ...parsedRecord, teacherId: userId } },
         { upsert: true, new: true }
       )
       return NextResponse.json(record, { status: 201 })

@@ -7,7 +7,6 @@ import { Student } from "@/models/Student";
 const ALLOWED_UPDATE_FIELDS = [
   "name",
   "email",
-  "grade",
   "rollNo",
   "class",
   "phone",
@@ -36,7 +35,16 @@ export async function PUT(
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Bad Request" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
     }
 
     // Sanitize: only allow whitelisted fields
@@ -51,7 +59,7 @@ export async function PUT(
     const student = await Student.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true },
+      { new: true, runValidators: true, context: "query" },
     );
     if (!student)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
