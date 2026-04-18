@@ -575,6 +575,20 @@ export function AssignmentsClient() {
             Create first assignment
           </Button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 dark:border-slate-600 py-20 text-center">
+          <p className="text-gray-400 text-sm mb-2">No assignments match the current filters.</p>
+          <button
+            onClick={() => {
+              setFilterClass("all");
+              setFilterSubject("all");
+              setSearch("");
+            }}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           {COLUMNS.map((col) => {
