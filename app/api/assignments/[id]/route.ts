@@ -18,8 +18,6 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
     }
 
-    await connectDB()
-    
     let body
     try {
       body = await req.json()
@@ -49,10 +47,12 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
     }
 
+    await connectDB()
+
     const assignment = await Assignment.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true }
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!assignment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(assignment)

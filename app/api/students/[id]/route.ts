@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     const student = await Student.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true }
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(student)

@@ -26,18 +26,27 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
 
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
+    }
+
+    const payload = body as Record<string, unknown>
+    const unknownFields = Object.keys(payload).filter((key) => !ALLOWED_UPDATE_FIELDS.includes(key))
+    if (unknownFields.length > 0) {
+      return NextResponse.json({ error: `Unknown field(s): ${unknownFields.join(', ')}` }, { status: 400 })
+    }
+
     // Sanitize: only allow whitelisted fields
     const sanitizedBody: Record<string, unknown> = {}
     for (const key of ALLOWED_UPDATE_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        sanitizedBody[key] = payload[key]
       }
     }
 
-    await connectDB()
-
-    const existingGrade = await Grade.findOne({ _id: id, teacherId: userId })
-    if (!existingGrade) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
+    }
 
     if ('studentId' in sanitizedBody) {
       const studentId = sanitizedBody.studentId
@@ -68,6 +77,11 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         return NextResponse.json({ error: 'maxMarks must be a number >= 1' }, { status: 400 })
       }
     }
+
+    await connectDB()
+
+    const existingGrade = await Grade.findOne({ _id: id, teacherId: userId })
+    if (!existingGrade) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const nextMarks = typeof sanitizedBody.marks === 'number' ? sanitizedBody.marks : existingGrade.marks
     const nextMaxMarks = typeof sanitizedBody.maxMarks === 'number' ? sanitizedBody.maxMarks : (existingGrade.maxMarks ?? 100)
