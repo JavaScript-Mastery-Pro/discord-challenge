@@ -514,6 +514,7 @@ export function StudentsClient() {
 
   // Class filter
   const [classFilter, setClassFilter] = useState<string>("all");
+  const [classOptions, setClassOptions] = useState<string[]>(["all"]);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -558,15 +559,62 @@ export function StudentsClient() {
     }
   }, [page, debouncedSearch, classFilter]);
 
+  const fetchClassOptions = useCallback(async () => {
+    try {
+      const firstRes = await fetch("/api/students?limit=100&page=1");
+      if (!firstRes.ok) return;
+
+      const firstData = await firstRes.json();
+      const totalPages =
+        firstData &&
+        typeof firstData === "object" &&
+        typeof firstData.pages === "number"
+          ? Math.max(1, firstData.pages)
+          : 1;
+
+      let allStudents: Student[] = firstData.students ?? [];
+
+      if (totalPages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetch(`/api/students?limit=100&page=${index + 2}`).then(
+              async (res) => {
+                if (!res.ok) return { students: [] as Student[] };
+                return res.json();
+              },
+            ),
+          ),
+        );
+
+        allStudents = allStudents.concat(
+          ...remainingPages.map((page) => page.students ?? []),
+        );
+      }
+
+      const classes = [
+        "all",
+        ...Array.from(new Set(allStudents.map((student) => student.class))).sort(),
+      ];
+
+      setClassOptions(classes);
+    } catch {
+      // Keep the existing options if this background refresh fails.
+    }
+  }, []);
+
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Unique classes for filter dropdown — derive from all loaded students on current page
-  const uniqueClasses = useMemo(() => {
-    const set = new Set(students.map((s) => s.class));
-    return ["all", ...Array.from(set).sort()];
-  }, [students]);
+  useEffect(() => {
+    fetchClassOptions();
+  }, [fetchClassOptions]);
+
+  useEffect(() => {
+    if (classFilter !== "all" && !classOptions.includes(classFilter)) {
+      setClassFilter("all");
+    }
+  }, [classFilter, classOptions]);
 
   // Sort + filter pipeline (client-side sorting, server-side filtering now handles class filter)
   const visibleStudents = useMemo(() => {
@@ -651,6 +699,7 @@ export function StudentsClient() {
       toast(editing ? "Student updated!" : "Student added!", "success");
       setModalOpen(false);
       fetchStudents();
+      fetchClassOptions();
     } else {
       let msg = "Something went wrong";
       try {
@@ -687,6 +736,7 @@ export function StudentsClient() {
         return n;
       });
       fetchStudents();
+      fetchClassOptions();
     } else toast("Failed to delete", "error");
   };
 
@@ -710,6 +760,7 @@ export function StudentsClient() {
       );
     else toast(`${failed} deletion${failed !== 1 ? "s" : ""} failed`, "error");
     fetchStudents();
+    fetchClassOptions();
   };
 
   // Optional columns config
@@ -881,7 +932,7 @@ export function StudentsClient() {
             }}
             className="py-2 pl-3 pr-8 text-sm rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {uniqueClasses.map((c) => (
+            {classOptions.map((c) => (
               <option key={c} value={c}>
                 {c === "all" ? "All Classes" : c}
               </option>
