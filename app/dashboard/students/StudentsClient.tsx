@@ -56,6 +56,21 @@ const GRADE_COLOR: Record<string, 'success' | 'info' | 'warning' | 'danger' | 'd
   'A+': 'success', A: 'success', 'B+': 'info', B: 'info', C: 'warning', D: 'warning', F: 'danger',
 }
 
+const TERM_ORDER = [
+  "Term 1",
+  "Term 2",
+  "Term 3",
+  "Term 4",
+  "Semester 1",
+  "Semester 2",
+  "Semester 3",
+  "Semester 4",
+  "Semester 5",
+  "Semester 6",
+  "Semester 7",
+  "Semester 8",
+];
+
 // Derive a consistent avatar color from a name string
 const AVATAR_COLORS = [
   'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300',
@@ -189,24 +204,15 @@ function StudentDrawer({
   }, [attendance])
 
   const recentGrades = useMemo(() => {
-    const SEASON_ORDER: Record<string, number> = {
-      Spring: 1,
-      Summer: 2,
-      Fall: 3,
-      Winter: 4,
-    };
     const sortedGrades = [...grades].sort((a, b) => {
-      // Parse term string (e.g., "Spring 2024") to extract season and year
-      const parseTermKey = (term: string): number => {
-        const parts = term.split(" ");
-        const season = parts[0] || "";
-        const year = parseInt(parts[1] || "0", 10);
-        const seasonVal = SEASON_ORDER[season] ?? 0;
-        return year * 100 + seasonVal; // e.g., 202401 for Spring 2024
-      };
-      const aKey = parseTermKey(a.term);
-      const bKey = parseTermKey(b.term);
-      return bKey - aKey; // Descending chronological order
+      const aIndex = TERM_ORDER.indexOf(a.term);
+      const bIndex = TERM_ORDER.indexOf(b.term);
+      if (aIndex !== -1 && bIndex !== -1) {
+        return bIndex - aIndex;
+      }
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return b.term.localeCompare(a.term);
     });
     return sortedGrades.slice(0, 6);
   }, [grades]);
