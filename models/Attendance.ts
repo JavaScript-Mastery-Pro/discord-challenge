@@ -16,8 +16,8 @@ const AttendanceSchema = new Schema<IAttendance>(
   {
     teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
-    studentName: { type: String, required: true },
-    class: { type: String, required: true },
+    // revome the studentName because If student name changes → data becomes inconsistent
+    // remove because  Data inconsistency
     date: { type: Date, required: true },
     status: { type: String, enum: ['present', 'absent', 'late'], required: true },
   },
