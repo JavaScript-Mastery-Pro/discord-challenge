@@ -51,6 +51,16 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (error instanceof Error) {
       console.error('PUT /api/students/[id] error:', error.message)
     }
+    if (error instanceof mongoose.Error.ValidationError) {
+      const firstError = Object.values(error.errors)[0]
+      return NextResponse.json(
+        { error: firstError?.message ?? 'Invalid student update' },
+        { status: 400 }
+      )
+    }
+    if (error instanceof mongoose.Error.CastError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     if ((error as { code?: number }).code === 11000) {
       return NextResponse.json({ error: 'A student with this roll number already exists' }, { status: 409 })
     }
