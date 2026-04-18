@@ -189,27 +189,63 @@ export function OverviewClient() {
       const [
         studentsRes,
         assignmentsRes,
+        activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
-        fetch("/api/assignments"),
+        fetch("/api/assignments?limit=100"),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
       ]);
 
-      const [students, assignmentsData, attendance, grades, announcements] =
+      const readJson = async (response: Response, label: string) => {
+        const data = await response.json();
+        if (!response.ok) {
+          const message =
+            typeof data?.error === "string"
+              ? data.error
+              : `${label} request failed`;
+          throw new Error(message);
+        }
+        return data;
+      };
+
+      const [
+        students,
+        assignmentsData,
+        activeAssignmentsData,
+        attendance,
+        grades,
+        announcements,
+      ] =
         await Promise.all([
-          studentsRes.json(),
-          assignmentsRes.json(),
-          attendanceRes.json(),
-          gradesRes.json(),
-          announcementsRes.json(),
+          readJson(studentsRes, "Students"),
+          readJson(assignmentsRes, "Assignments"),
+          readJson(activeAssignmentsRes, "Active assignments"),
+          readJson(attendanceRes, "Attendance"),
+          readJson(gradesRes, "Grades"),
+          readJson(announcementsRes, "Announcements"),
         ]);
 
-      const assignments = assignmentsData.assignments ?? assignmentsData;
+      const studentRows = Array.isArray(students.students) ? students.students : [];
+      const assignments = Array.isArray(assignmentsData.assignments)
+        ? assignmentsData.assignments
+        : Array.isArray(assignmentsData)
+          ? assignmentsData
+          : [];
+      const attendanceRows = Array.isArray(attendance) ? attendance : [];
+      const gradeRows = Array.isArray(grades) ? grades : [];
+      const announcementRows = Array.isArray(announcements) ? announcements : [];
+      const activeAssignmentsTotal =
+        typeof activeAssignmentsData.total === "number"
+          ? activeAssignmentsData.total
+          : Array.isArray(activeAssignmentsData.assignments)
+            ? activeAssignmentsData.assignments.length
+            : 0;
 
       // ── Attendance ──
       const dateMap: Record<
@@ -219,7 +255,7 @@ export function OverviewClient() {
       let totalPresent = 0,
         totalAbsent = 0,
         totalLate = 0;
-      for (const rec of attendance) {
+      for (const rec of attendanceRows) {
         if (!dateMap[rec.date])
           dateMap[rec.date] = { present: 0, absent: 0, late: 0 };
         // Validate status before using it
@@ -254,11 +290,11 @@ export function OverviewClient() {
         "B+": 8,
         B: 7,
         C: 6,
-        D: 4,
+        D: 5,
         F: 0,
       };
       const termMap: Record<string, number[]> = {};
-      for (const g of grades) {
+      for (const g of gradeRows) {
         (termMap[g.term] ??= []).push(GRADE_POINT[g.grade] ?? 0);
       }
       const TERM_ORDER = [
@@ -286,7 +322,7 @@ export function OverviewClient() {
 
       // ── Grade distribution ──
       const gradeCounts: Record<string, number> = {};
-      for (const g of grades)
+      for (const g of gradeRows)
         gradeCounts[g.grade || "N/A"] =
           (gradeCounts[g.grade || "N/A"] || 0) + 1;
       const gradeDistribution = Object.entries(gradeCounts).map(
@@ -316,13 +352,15 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
-        totalAssignments: Array.isArray(assignments)
-          ? assignments.length
-          : (assignments.length ?? 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        totalStudents:
+          typeof students.total === "number"
+            ? students.total
+            : studentRows.length,
+        totalAssignments:
+          typeof assignmentsData.total === "number"
+            ? assignmentsData.total
+            : assignments.length,
+        pendingAssignments: activeAssignmentsTotal,
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,
@@ -333,8 +371,8 @@ export function OverviewClient() {
         cgpaTrend,
         gradeDistribution,
         upcomingDeadlines,
-        recentAnnouncements: announcements.slice(0, 5),
-        recentStudents: students.students?.slice(0, 5) ?? [],
+        recentAnnouncements: announcementRows.slice(0, 5),
+        recentStudents: studentRows.slice(0, 5),
       });
       setLastRefreshed(new Date());
     } catch (err) {
