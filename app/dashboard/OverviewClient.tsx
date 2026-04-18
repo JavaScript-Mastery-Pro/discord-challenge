@@ -200,6 +200,11 @@ export function OverviewClient() {
         fetch("/api/announcements?limit=5"),
       ]);
 
+      // Check that all responses are OK before processing
+      for (const res of [studentsRes, assignmentsRes, attendanceRes, gradesRes, announcementsRes]) {
+        if (!res.ok) throw new Error(`API error: ${res.url} returned ${res.status}`);
+      }
+
       const [students, assignmentsData, attendance, grades, announcements] =
         await Promise.all([
           studentsRes.json(),
