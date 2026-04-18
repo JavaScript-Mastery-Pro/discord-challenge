@@ -9,6 +9,27 @@ import { useToast } from "@/components/ui/Toast";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
+function formatZodError(error: any): string {
+  if (!error) return "Unknown error";
+
+  const messages: string[] = [];
+
+  if (error.formErrors?.length) {
+    messages.push(...error.formErrors);
+  }
+
+  if (error.fieldErrors) {
+    for (const key in error.fieldErrors) {
+      const errs = error.fieldErrors[key];
+      if (errs) {
+        messages.push(...errs.map((e: string) => `${key}: ${e}`));
+      }
+    }
+  }
+
+  return messages.join(", ");
+}
+
 interface AcademicHistoryEntry {
   year: string;
   title: string;
@@ -46,6 +67,7 @@ export function ProfileClient() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
   const [editing, setEditing] = useState(false);
+  const [savingHistory, setSavingHistory] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [timelineModalOpen, setTimelineModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<{
@@ -131,27 +153,29 @@ export function ProfileClient() {
       .map((s) => s.trim())
       .filter(Boolean);
     const subjects = Array.from(new Set(subjectsArray));
+    const payload: any = {};
+
+    if (data.name.trim()) payload.name = data.name.trim();
+    if (data.department.trim()) payload.department = data.department.trim();
+    if (subjects.length) payload.subjects = subjects;
+    if (data.phone.trim()) payload.phone = data.phone.trim();
+    if (data.bio.trim()) payload.bio = data.bio.trim();
+
     try {
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          department: data.department,
-          subjects,
-          phone: data.phone,
-          bio: data.bio,
-          academicHistory: profile?.academicHistory ?? [],
-        }),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setProfile(updated);
-        toast("Profile updated!", "success");
-        setEditing(false);
-      } else {
-        toast("Failed to update profile", "error");
+      const result = await res.json();
+      if (!res.ok) {
+        toast(formatZodError(result.error), "error");
+        return;
       }
+
+      setProfile(result);
+      toast("Profile updated!", "success");
+      setEditing(false);
     } catch (error) {
       toast(
         `Network error: ${error instanceof Error ? error.message : "Failed to update profile"}`,
@@ -170,7 +194,6 @@ export function ProfileClient() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...profile,
           academicHistory: history,
         }),
       });
@@ -220,8 +243,10 @@ export function ProfileClient() {
       current.push(data);
     }
     // sort descending by year
-    current.sort((a, b) => b.year.localeCompare(a.year));
+    current.sort((a, b) => Number(b.year) - Number(a.year));
+    setSavingHistory(true);
     const success = await saveHistory(current);
+    setSavingHistory(false);
     if (success) {
       toast("Academic history saved!", "success");
       setTimelineModalOpen(false);
@@ -423,7 +448,9 @@ export function ProfileClient() {
                 Subjects (comma-separated)
               </label>
               <input
-                {...register("subjectsRaw")}
+                {...register("subjectsRaw", {
+                  validate: (val) => val.trim().length > 0 || "Required",
+                })}
                 className="input w-full"
                 placeholder="Mathematics, Physics, Programming"
               />
@@ -497,7 +524,12 @@ export function ProfileClient() {
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             Academic History
           </h3>
-          <Button size="sm" variant="outline" onClick={openAddEntry}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={openAddEntry}
+            disabled={savingHistory}
+          >
             <svg
               className="h-4 w-4"
               fill="none"
