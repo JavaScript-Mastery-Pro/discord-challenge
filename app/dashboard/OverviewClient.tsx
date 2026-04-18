@@ -371,10 +371,15 @@ export function OverviewClient() {
         "Term 1",
         "Term 2",
         "Term 3",
+        "Term 4",
         "Semester 1",
         "Semester 2",
         "Semester 3",
         "Semester 4",
+        "Semester 5",
+        "Semester 6",
+        "Semester 7",
+        "Semester 8",
       ];
       const cgpaTrend = Object.entries(termMap)
         .sort(([a], [b]) => {
