@@ -25,10 +25,10 @@ const StudentSchema = new Schema<IStudent>(
       default: '',
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Invalid email format'], },
-    phone: { type: String, default: '' },
-    address: { type: String, default: '' },
-    parentName: { type: String, default: '' },
-    parentPhone: { type: String, default: '' },
+    phone: { type: String, default: '', trim: true },
+    address: { type: String, default: '', trim: true },
+    parentName: { type: String, default: '', trim: true },
+    parentPhone: { type: String, default: '', trim: true },
   },
   { timestamps: true }
 )
