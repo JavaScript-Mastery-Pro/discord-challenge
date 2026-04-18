@@ -33,6 +33,6 @@ const StudentSchema = new Schema<IStudent>(
   { timestamps: true }
 )
 
-StudentSchema.index({ teacherId: 1, rollNo: 1 }, { unique: true })
+StudentSchema.index({ teacherId: 1, class: 1 }, { unique: true });
 
 export const Student = models.Student ?? model<IStudent>('Student', StudentSchema)
