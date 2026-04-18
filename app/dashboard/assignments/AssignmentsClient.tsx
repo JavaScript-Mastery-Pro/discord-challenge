@@ -63,6 +63,27 @@ function daysUntil(deadline: string) {
   return daysUntilDateOnly(deadline) ?? 0
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 function DeadlineBadge({ deadline }: { deadline: string }) {
   const days = daysUntil(deadline);
   if (days < 0) return <Badge variant="danger">Overdue</Badge>;
@@ -404,7 +425,9 @@ export function AssignmentsClient() {
         );
         setModalOpen(false);
         fetchAssignments();
-      } else toast("Failed to save", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to save assignment"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     }
@@ -432,7 +455,7 @@ export function AssignmentsClient() {
         }),
       });
       if (!res.ok) {
-        throw new Error(`Failed to move assignment: ${res.status}`);
+        throw new Error(await getErrorMessage(res, `Failed to move assignment: ${res.status}`));
       }
     } catch (error) {
       fetchAssignments();
@@ -453,7 +476,9 @@ export function AssignmentsClient() {
       if (res.ok) {
         toast("Deleted", "success");
         fetchAssignments();
-      } else toast("Failed to delete", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to delete assignment"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     } finally {
