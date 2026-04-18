@@ -92,7 +92,10 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const updatePayload: Record<string, unknown> = { name, subjects }
+    const updatePayload: Record<string, unknown> = {
+      name: name.trim(),
+      subjects: subjects.map((s) => s.trim()),
+    };
     if (department !== undefined) updatePayload.department = department
     if (phone !== undefined) updatePayload.phone = phone
     if (bio !== undefined) updatePayload.bio = bio
