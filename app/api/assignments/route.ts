@@ -4,13 +4,16 @@ import { connectDB } from '@/lib/mongodb'
 import { Assignment } from '@/models/Assignment'
 import { z } from 'zod'
 
+const SUBJECTS = ['Mathematics', 'Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks'] as const;
+const CLASSES = ['CS-A', 'CS-B'] as const;
+
 const AssignmentSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  subject: z.string().min(1),
-  class: z.string().min(1),
-  deadline: z.string().min(1),
-  maxMarks: z.number().min(1).optional(),
+  title: z.string().trim().min(3),
+  description: z.string().max(1000).optional(),
+  subject: z.enum(SUBJECTS),
+  class: z.enum(CLASSES),
+  deadline: z.string().refine((value) => new Date(value) > new Date(), 'Deadline must be in the future'),
+  maxMarks: z.number().min(1).max(1000).optional(),
   status: z.enum(['active', 'closed']).optional(),
   kanbanStatus: z.enum(['todo', 'in_progress', 'submitted']).optional(),
 })

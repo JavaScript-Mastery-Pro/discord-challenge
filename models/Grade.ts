@@ -2,7 +2,7 @@ import mongoose, { Schema, model, models } from 'mongoose'
 
 export interface IGrade {
   _id: mongoose.Types.ObjectId
-  teacherId: string
+  teacherId: mongoose.Types.ObjectId
   studentId: mongoose.Types.ObjectId
   studentName: string
   subject: string
@@ -16,10 +16,12 @@ export interface IGrade {
 
 const GradeSchema = new Schema<IGrade>(
   {
-    teacherId: { type: String, required: true, index: true },
+    teacherId: { type: Schema.Types.ObjectId, ref: "Teacher", required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
     studentName: { type: String, required: true },
-    subject: { type: String, required: true },
+    subject: { type: String,
+      enum: ['Mathematics', 'Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks'],
+      required: true,},
     marks: {
       type: Number,
       required: true,
@@ -27,7 +29,9 @@ const GradeSchema = new Schema<IGrade>(
     },
     maxMarks: { type: Number, default: 100, min: 1 },
     grade: { type: String, default: "" },
-    term: { type: String, default: "Term 1" },
+    term: {   type: String,
+      enum: ["Term 1", "Term 2"],
+      default: "Term 1", },
   },
   { timestamps: true },
 );

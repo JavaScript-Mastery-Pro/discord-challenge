@@ -2,9 +2,9 @@ import mongoose, { Schema, model, models } from 'mongoose'
 
 export interface IAttendance {
   _id: mongoose.Types.ObjectId
-  teacherId: string
+  teacherId: mongoose.Types.ObjectId
   studentId: mongoose.Types.ObjectId
-  studentName: string
+  // removed the studentName
   class: string
   date: string
   status: 'present' | 'absent' | 'late'
@@ -14,16 +14,27 @@ export interface IAttendance {
 
 const AttendanceSchema = new Schema<IAttendance>(
   {
-    teacherId: { type: String, required: true, index: true },
+    teacherId: { type: Schema.Types.ObjectId, ref: 'Teacher', required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
-    studentName: { type: String, required: true },
-    class: { type: String, required: true },
-    date: { type: String, required: true },
+    // revome the studentName because If student name changes → data becomes inconsistent
+    // remove because  Data inconsistency
+     class: { type: String, required: true, trim: true },
+    date: { type: Date, required: true },
     status: { type: String, enum: ['present', 'absent', 'late'], required: true },
   },
   { timestamps: true }
 )
 
+// existing uniqueness constraint
 AttendanceSchema.index({ studentId: 1, date: 1 }, { unique: true })
+
+// NEW: optimize teacher dashboard queries
+AttendanceSchema.index({ teacherId: 1, date: 1 })
+
+// NEW: optimize class-wise filtering
+AttendanceSchema.index({ teacherId: 1, class: 1 })
+
+// NEW: optimize status filtering (present/absent/late)
+AttendanceSchema.index({ teacherId: 1, status: 1 })
 
 export const Attendance = models.Attendance ?? model<IAttendance>('Attendance', AttendanceSchema)

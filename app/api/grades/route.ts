@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
+import mongoose from 'mongoose'
+import { Teacher } from '@/models/Teacher'
 
+async function findTeacherByClerkId(userId: string){ 
+  return Teacher.findOne({ clerkId: userId }).select('_id').lean()
+};
+  
 const GradeSchema = z.object({
-  studentId: z.string().min(1),
+  studentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid studentId'),
   studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
@@ -21,7 +27,7 @@ const GradeSchema = z.object({
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
+  if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
   if (pct >= 70) return 'B+'
   if (pct >= 60) return 'B'
@@ -35,20 +41,29 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    await connectDB()
+    await connectDB();
+    
+    const teacher = await findTeacherByClerkId(userId);
+    if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
+    
     const { searchParams } = new URL(req.url)
     const studentId = searchParams.get('studentId')
     const subject = searchParams.get('subject')
 
-    const query: Record<string, unknown> = { teacherId: userId }
-    if (studentId) query.studentId = studentId
+    const query: Record<string, unknown> = { teacherId: teacher._id };
+
+  if (studentId) {
+     if (!mongoose.Types.ObjectId.isValid(studentId)) return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
+     query.studentId = new mongoose.Types.ObjectId(studentId)
+  };
+    
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
     return NextResponse.json(grades)
   } catch (error) {
     console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -58,6 +73,9 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB()
+
+     const teacher = await findTeacherByClerkId(userId);
+     if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
     
     let body
     try {
@@ -69,13 +87,17 @@ export async function POST(req: NextRequest) {
     const parsed = GradeSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-    const data = parsed.data
-    const max = data.maxMarks!
+    const data = {
+      ...parsed.data,
+      studentName: parsed.data.studentName.trim(),
+      subject: parsed.data.subject.trim(),
+    };
+    const max = data.maxMarks ?? 100;
     const term = data.term ?? 'Term 1'
     
-    const grade = Grade.findOneAndUpdate(
-      { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
-      { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
+    const grade = await Grade.findOneAndUpdate(
+      { teacherId: teacher._id, studentId: new mongoose.Types.ObjectId(data.studentId), subject: data.subject, term },
+      { $set: { ...data, term, teacherId: teacher._id, grade: calcGrade(data.marks, max) } },
       { upsert: true, new: true }
     )
     return NextResponse.json(grade, { status: 201 })
@@ -83,6 +105,6 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error) {
       console.error('POST /api/grades error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

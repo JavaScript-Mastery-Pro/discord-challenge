@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
 
     if (!teacher) {
       const clerkUser = await currentUser()
+      if (!clerkUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
       const created = await Teacher.create({
         clerkId: userId,
         name: clerkUser?.fullName ?? '',
@@ -60,9 +63,15 @@ export async function PUT(req: NextRequest) {
     if (department !== undefined && typeof department !== 'string') {
       return NextResponse.json({ error: 'department must be a string' }, { status: 400 })
     }
-    if (!Array.isArray(subjects) || !subjects.every((s) => typeof s === 'string')) {
+    
+   if (
+     !Array.isArray(subjects) ||
+     subjects.length === 0 ||
+     !subjects.every((s: unknown) => typeof s === 'string' && s.trim().length > 0)
+    ) {
       return NextResponse.json({ error: 'subjects must be an array of strings' }, { status: 400 })
     }
+    
     if (phone !== undefined && typeof phone !== 'string') {
       return NextResponse.json({ error: 'phone must be a string' }, { status: 400 })
     }
@@ -77,7 +86,7 @@ export async function PUT(req: NextRequest) {
           (entry: unknown) =>
             entry !== null &&
             typeof entry === 'object' &&
-            typeof (entry as Record<string, unknown>).year === 'string' &&
+            typeof (entry as Record<string, unknown>).year === 'string'  &&
             typeof (entry as Record<string, unknown>).title === 'string',
         )
       ) {
@@ -88,17 +97,20 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const updatePayload: Record<string, unknown> = { name, subjects }
+    const updatePayload: Record<string, unknown> = {
+      name: name.trim(),
+      subjects: subjects.map((s) => s.trim()),
+    };
     if (department !== undefined) updatePayload.department = department
-    if (phone !== undefined) updatePayload.phone = phone
-    if (bio !== undefined) updatePayload.bio = bio
+    if (phone !== undefined) updatePayload.phone = phone.trim()
+    if (bio !== undefined) updatePayload.bio = bio.trim()
     if (academicHistory !== undefined) updatePayload.academicHistory = academicHistory
 
     const teacher = await Teacher.findOneAndUpdate(
       { clerkId: userId },
       { $set: updatePayload },
-      { new: true }
-    )
+      { new: true, runValidators: true },
+    );
     
     if (!teacher) {
       return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
