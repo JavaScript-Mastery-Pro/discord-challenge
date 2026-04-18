@@ -54,6 +54,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     const nextMaxMarks =
       typeof sanitizedBody.maxMarks === 'number' ? sanitizedBody.maxMarks : existingGrade.maxMarks
 
+    if (nextMarks > nextMaxMarks) {
+      return NextResponse.json(
+        { error: 'marks must be less than or equal to maxMarks' },
+        { status: 400 }
+      )
+    }
+
     sanitizedBody.grade = calcGrade(nextMarks, nextMaxMarks)
 
     const grade = await Grade.findOneAndUpdate(
