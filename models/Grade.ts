@@ -58,8 +58,10 @@ GradeSchema.pre("findOneAndUpdate", function () {
 GradeSchema.pre("updateOne", function () {
   const update = this.getUpdate() as Record<string, unknown>;
   if (update && typeof update === "object") {
-    const marks = update.marks;
-    const maxMarks = update.maxMarks;
+    // Support both direct updates and $set operator
+    const source = (update.$set && typeof update.$set === "object" ? update.$set : update) as Record<string, unknown>;
+    const marks = source.marks;
+    const maxMarks = source.maxMarks;
     if (
       marks !== undefined && typeof marks === "number" &&
       maxMarks !== undefined && typeof maxMarks === "number" &&
