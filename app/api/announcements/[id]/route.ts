@@ -1,10 +1,17 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { z } from 'zod'
 import { connectDB } from '@/lib/mongodb'
 import { Announcement } from '@/models/Announcement'
 
-const ALLOWED_FIELDS = ['title', 'content', 'body', 'audience', 'category', 'pinned', 'expiresAt']
+const AnnouncementUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  content: z.string().min(1).optional(),
+  audience: z.string().optional(),
+  category: z.enum(['academic', 'events', 'admin', 'general']).optional(),
+  pinned: z.boolean().optional(),
+})
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -27,17 +34,18 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 })
     }
 
-    // Sanitize: only allow whitelisted fields
-    const sanitizedBody: Record<string, unknown> = {}
-    for (const key of ALLOWED_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
-      }
+    const parsed = AnnouncementUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+
+    if (Object.keys(parsed.data).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     const announcement = await Announcement.findOneAndUpdate(
-      { _id: id },
-      { $set: sanitizedBody },
+      { _id: id, teacherId: userId },
+      { $set: parsed.data },
       { new: true, runValidators: true, context: 'query' }
     )
     if (!announcement) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -63,7 +71,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Announcement.findOneAndDelete({ _id: id })
+    const deleted = await Announcement.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })

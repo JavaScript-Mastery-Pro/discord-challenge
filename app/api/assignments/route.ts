@@ -9,7 +9,9 @@ const AssignmentSchema = z.object({
   description: z.string().optional(),
   subject: z.string().min(1),
   class: z.string().min(1),
-  deadline: z.string().min(1),
+  deadline: z.string().min(1).refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: 'Invalid deadline',
+  }),
   maxMarks: z.number().min(1).optional(),
   status: z.enum(['active', 'closed']).optional(),
   kanbanStatus: z.enum(['todo', 'in_progress', 'submitted']).optional(),
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
     if (error instanceof Error) {
       console.error('GET /api/assignments error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 

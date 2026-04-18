@@ -1,18 +1,23 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
 
+const StudentIdSchema = z.string().refine((value) => mongoose.Types.ObjectId.isValid(value), {
+  message: 'Invalid studentId',
+})
+
 const GradeSchema = z.object({
-  studentId: z.string().min(1),
+  studentId: StudentIdSchema,
   studentName: z.string().min(1),
   subject: z.string().min(1),
   marks: z.number().min(0),
   maxMarks: z.number().min(1).optional(),
   term: z.string().optional(),
 }).refine(
-  (data) => !data.maxMarks || data.marks <= data.maxMarks,
+  (data) => data.marks <= (data.maxMarks ?? 100),
   {
     message: 'marks must be less than or equal to maxMarks',
     path: ['marks'],
@@ -40,6 +45,10 @@ export async function GET(req: NextRequest) {
     const studentId = searchParams.get('studentId')
     const subject = searchParams.get('subject')
 
+    if (studentId && !mongoose.Types.ObjectId.isValid(studentId)) {
+      return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 })
+    }
+
     const query: Record<string, unknown> = { teacherId: userId }
     if (studentId) query.studentId = studentId
     if (subject) query.subject = subject
@@ -48,7 +57,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(grades)
   } catch (error) {
     console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -70,19 +79,19 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
-    const max = data.maxMarks!
+    const max = data.maxMarks ?? 100
     const term = data.term ?? 'Term 1'
     
-    const grade = Grade.findOneAndUpdate(
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
-      { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
-      { upsert: true, new: true }
+      { $set: { ...data, maxMarks: max, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
+      { upsert: true, new: true, runValidators: true, context: 'query', setDefaultsOnInsert: true }
     )
     return NextResponse.json(grade, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
       console.error('POST /api/grades error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

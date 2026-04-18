@@ -1,11 +1,16 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
 import { z } from 'zod'
 
+const StudentIdSchema = z.string().refine((value) => mongoose.Types.ObjectId.isValid(value), {
+  message: 'Invalid studentId',
+})
+
 const AttendanceSchema = z.object({
-  studentId: z.string().min(1),
+  studentId: StudentIdSchema,
   studentName: z.string().min(1),
   class: z.string().min(1),
   date: z.string().min(1),
@@ -29,6 +34,13 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate");
 
     const query: Record<string, unknown> = { teacherId: userId };
+
+    if (studentId && !mongoose.Types.ObjectId.isValid(studentId)) {
+      return NextResponse.json(
+        { error: "Invalid studentId" },
+        { status: 400 },
+      );
+    }
 
     // Helper to validate and normalize date strings to YYYY-MM-DD format
     const normalizeDate = (dateStr: string): string | null => {

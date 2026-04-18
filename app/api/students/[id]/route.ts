@@ -1,10 +1,20 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { z } from 'zod'
 import { connectDB } from '@/lib/mongodb'
 import { Student } from '@/models/Student'
 
-const ALLOWED_UPDATE_FIELDS = ['name', 'email', 'grade', 'rollNo', 'class', 'phone', 'address', 'parentName', 'parentPhone']
+const StudentUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  rollNo: z.string().min(1).optional(),
+  class: z.string().min(1).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  parentName: z.string().optional(),
+  parentPhone: z.string().optional(),
+})
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -25,19 +35,20 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       return NextResponse.json({ error: 'Bad Request' }, { status: 400 })
     }
 
-    // Sanitize: only allow whitelisted fields
-    const sanitizedBody: Record<string, unknown> = {}
-    for (const key of ALLOWED_UPDATE_FIELDS) {
-      if (key in body) {
-        sanitizedBody[key] = body[key]
-      }
+    const parsed = StudentUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+
+    if (Object.keys(parsed.data).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     await connectDB()
     const student = await Student.findOneAndUpdate(
-      { _id: id },
-      sanitizedBody,
-      { new: true }
+      { _id: id, teacherId: userId },
+      { $set: parsed.data },
+      { new: true, runValidators: true, context: 'query' }
     )
     if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(student)
@@ -65,7 +76,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Student.findOneAndDelete({ _id: id })
+    const deleted = await Student.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
