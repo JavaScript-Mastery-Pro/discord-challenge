@@ -53,6 +53,27 @@ function timeAgo(date: string) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 function useReadState() {
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
@@ -153,7 +174,7 @@ export function AnnouncementsClient() {
         setModalOpen(false)
         fetchAnnouncements()
       } else {
-        toast('Failed to save announcement', 'error')
+        toast(await getErrorMessage(res, 'Failed to save announcement'), 'error')
       }
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Network error', 'error')
@@ -168,7 +189,7 @@ export function AnnouncementsClient() {
         body: JSON.stringify({ pinned: !a.pinned }),
       })
       if (res.ok) { toast(a.pinned ? 'Unpinned' : 'Pinned!', 'success'); fetchAnnouncements() }
-      else toast('Failed to update', 'error')
+      else toast(await getErrorMessage(res, 'Failed to update announcement'), 'error')
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Network error', 'error')
     }
@@ -183,7 +204,9 @@ export function AnnouncementsClient() {
       if (res.ok) {
         toast("Deleted", "success");
         fetchAnnouncements();
-      } else toast("Failed to delete", "error");
+      } else {
+        toast(await getErrorMessage(res, "Failed to delete announcement"), "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "Network error", "error");
     } finally {
