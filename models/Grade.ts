@@ -19,7 +19,7 @@ const GradeSchema = new Schema<IGrade>(
     teacherId: { type: Schema.Types.ObjectId, ref: "Teacher", required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
     // removes the studentName because can cause- data inconsistency
-    subject: { type: String, required: true },
+    subject: {enum: ['Mathematics', 'Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks']},
     marks: {
       type: Number,
       required: true,
@@ -27,7 +27,7 @@ const GradeSchema = new Schema<IGrade>(
     },
     maxMarks: { type: Number, default: 100, min: 1 },
     grade: { type: String, default: "" },
-    term: { type: String, default: "Term 1" },
+    term: { enum: ["Term 1", "Term 2"] },
   },
   { timestamps: true },
 );
