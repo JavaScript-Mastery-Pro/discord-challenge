@@ -294,10 +294,13 @@ export function GradesClient() {
       toast("Selected student not found", "error");
       return;
     }
+    const normalizedMaxMarks = Number.isFinite(data.maxMarks)
+      ? Number(data.maxMarks)
+      : undefined;
     const payload = {
       ...data,
       marks: Number(data.marks),
-      maxMarks: Number(data.maxMarks),
+      ...(normalizedMaxMarks !== undefined ? { maxMarks: normalizedMaxMarks } : {}),
       studentName: selectedStudent.name,
     };
     const url = editing ? `/api/grades/${editing._id}` : "/api/grades";
