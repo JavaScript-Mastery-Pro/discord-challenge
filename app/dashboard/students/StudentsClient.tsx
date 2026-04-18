@@ -548,14 +548,27 @@ export function StudentsClient() {
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (classFilter !== "all") params.set("class", classFilter);
       const res = await fetch(`/api/students?${params}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const msg =
+          typeof (errBody as { error?: string }).error === "string"
+            ? (errBody as { error: string }).error
+            : `Request failed (${res.status})`;
+        throw new Error(msg);
+      }
       const data = await res.json();
       setStudents(data.students ?? []);
       setTotal(data.total ?? 0);
       setPages(data.pages ?? 1);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed to load students", "error");
+      setStudents([]);
+      setTotal(0);
+      setPages(1);
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, classFilter]);
+  }, [page, debouncedSearch, classFilter, toast]);
 
   useEffect(() => {
     fetchStudents();
