@@ -328,7 +328,7 @@ export function OverviewClient() {
         .slice(0, 5);
 
       setStats({
-        totalStudents: students.students?.length ?? 0,
+        totalStudents: students.total ?? students.students?.length ?? 0,
         totalAssignments: assignmentsTotal,
         pendingAssignments,
         attendancePct,
