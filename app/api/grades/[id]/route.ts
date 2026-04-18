@@ -97,6 +97,19 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (error instanceof Error) {
       console.error('PUT /api/grades/[id] error:', error.message)
     }
+    if (error instanceof mongoose.Error.ValidationError) {
+      const firstError = Object.values(error.errors)[0]
+      return NextResponse.json(
+        { error: firstError?.message ?? 'Invalid grade update' },
+        { status: 400 }
+      )
+    }
+    if (error instanceof mongoose.Error.CastError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error instanceof Error && error.message === 'marks must be less than or equal to maxMarks') {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     if ((error as { code?: number }).code === 11000) {
       return NextResponse.json({ error: 'A grade already exists for this student, subject, and term' }, { status: 409 })
     }
