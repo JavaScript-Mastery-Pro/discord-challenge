@@ -45,6 +45,10 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
       }
     }
 
+    if (Object.keys(sanitizedBody).length === 0) {
+      return NextResponse.json({ error: 'No valid grade fields provided' }, { status: 400 })
+    }
+
     await connectDB()
 
     const existingGrade = await Grade.findOne({ _id: id, teacherId: userId })
