@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
     return NextResponse.json(grades)
   } catch (error) {
-    console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    console.error('GET /api/grades error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -80,9 +80,7 @@ export async function POST(req: NextRequest) {
     )
     return NextResponse.json(grade, { status: 201 })
   } catch (error) {
-    if (error instanceof Error) {
-      console.error('POST /api/grades error:', error.message)
-    }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    console.error('POST /api/grades error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
