@@ -3,26 +3,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Teacher } from "@/models/Teacher";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const { userId } = await auth();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     await connectDB();
-    let teacher = await Teacher.findOne({ clerkId: userId }).lean();
-
-    if (!teacher) {
-      const clerkUser = await currentUser();
-      const created = await Teacher.create({
-        clerkId: userId,
-        name: clerkUser?.fullName ?? "",
-        email: clerkUser?.emailAddresses[0]?.emailAddress ?? "",
-        department: "",
-        subjects: [],
-      });
-      teacher = created.toObject();
-    }
+    const clerkUser = await currentUser();
+    const teacher = await Teacher.findOneAndUpdate(
+      { clerkId: userId },
+      {
+        $setOnInsert: {
+          clerkId: userId,
+          name: clerkUser?.fullName ?? "",
+          email: clerkUser?.emailAddresses?.[0]?.emailAddress ?? "",
+          department: "",
+          subjects: [],
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true, lean: true },
+    );
 
     return NextResponse.json(teacher);
   } catch (error) {
@@ -95,18 +96,27 @@ export async function PUT(req: NextRequest) {
       if (
         !Array.isArray(academicHistory) ||
         academicHistory.length > 20 ||
-        !academicHistory.every(
-          (entry: unknown) =>
-            entry !== null &&
-            typeof entry === "object" &&
-            typeof (entry as Record<string, unknown>).year === "string" &&
-            typeof (entry as Record<string, unknown>).title === "string",
-        )
+        !academicHistory.every((entry: unknown) => {
+          if (entry === null || typeof entry !== "object") return false;
+          const record = entry as Record<string, unknown>;
+          if (typeof record.year !== "string" || record.year.length > 10)
+            return false;
+          if (typeof record.title !== "string" || record.title.length > 200)
+            return false;
+          if (
+            record.description !== undefined &&
+            (typeof record.description !== "string" ||
+              record.description.length > 2000)
+          ) {
+            return false;
+          }
+          return true;
+        })
       ) {
         return NextResponse.json(
           {
             error:
-              "academicHistory must be an array of objects with string year and title (max 20 items)",
+              "academicHistory must be an array of objects with year/title strings (year<=10, title<=200, optional description<=2000, max 20 items)",
           },
           { status: 400 },
         );
@@ -122,13 +132,9 @@ export async function PUT(req: NextRequest) {
 
     const teacher = await Teacher.findOneAndUpdate(
       { clerkId: userId },
-      { $set: updatePayload },
-      { new: true },
+      { $set: updatePayload, $setOnInsert: { clerkId: userId } },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
     );
-
-    if (!teacher) {
-      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-    }
 
     return NextResponse.json(teacher);
   } catch (error) {

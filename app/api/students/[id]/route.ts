@@ -7,7 +7,6 @@ import { Student } from "@/models/Student";
 const ALLOWED_UPDATE_FIELDS = [
   "name",
   "email",
-  "grade",
   "rollNo",
   "class",
   "phone",
@@ -51,7 +50,7 @@ export async function PUT(
     const student = await Student.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true },
+      { new: true, runValidators: true, context: "query" },
     );
     if (!student)
       return NextResponse.json({ error: "Not found" }, { status: 404 });

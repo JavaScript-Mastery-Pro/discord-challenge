@@ -189,12 +189,14 @@ export function OverviewClient() {
       const [
         studentsRes,
         assignmentsRes,
+        activeAssignmentsRes,
         attendanceRes,
         gradesRes,
         announcementsRes,
       ] = await Promise.all([
         fetch("/api/students?limit=5"),
         fetch("/api/assignments"),
+        fetch("/api/assignments?status=active&limit=1"),
         fetch("/api/attendance"),
         fetch("/api/grades"),
         fetch("/api/announcements?limit=5"),
@@ -203,6 +205,7 @@ export function OverviewClient() {
       if (
         !studentsRes.ok ||
         !assignmentsRes.ok ||
+        !activeAssignmentsRes.ok ||
         !attendanceRes.ok ||
         !gradesRes.ok ||
         !announcementsRes.ok
@@ -210,10 +213,18 @@ export function OverviewClient() {
         throw new Error("Failed to load dashboard data");
       }
 
-      const [students, assignmentsData, attendance, grades, announcements] =
+      const [
+        students,
+        assignmentsData,
+        activeAssignmentsData,
+        attendance,
+        grades,
+        announcements,
+      ] =
         await Promise.all([
           studentsRes.json(),
           assignmentsRes.json(),
+          activeAssignmentsRes.json(),
           attendanceRes.json(),
           gradesRes.json(),
           announcementsRes.json(),
@@ -330,9 +341,7 @@ export function OverviewClient() {
         totalAssignments:
           assignmentsData.total ??
           (Array.isArray(assignments) ? assignments.length : 0),
-        pendingAssignments: assignments.filter(
-          (a: { status: string }) => a.status === "active",
-        ).length,
+        pendingAssignments: activeAssignmentsData.total ?? 0,
         attendancePct,
         attendanceBreakdown: {
           present: totalPresent,

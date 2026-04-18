@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongodb'
 import { Attendance } from '@/models/Attendance'
+import { Student } from '@/models/Student'
 import { z } from 'zod'
 
 const AttendanceSchema = z.object({
-  studentId: z.string().refine((id) => mongoose.Types.ObjectId.isValid(id), {
+  studentId: z.string().refine((id) => mongoose.isObjectIdOrHexString(id), {
     message: 'Invalid studentId',
   }),
   studentName: z.string().min(1),
@@ -79,7 +80,7 @@ export async function GET(req: NextRequest) {
       query.date = dateRange;
     }
     if (cls) query.class = cls;
-    if (studentId && !mongoose.Types.ObjectId.isValid(studentId)) {
+    if (studentId && !mongoose.isObjectIdOrHexString(studentId)) {
       return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
     }
     if (studentId) query.studentId = studentId;
@@ -130,6 +131,21 @@ export async function POST(req: NextRequest) {
       );
 
     if (isBulk) {
+      const studentIds = [
+        ...new Set(
+          (parsed.data as z.infer<typeof BulkSchema>).map(
+            (record) => record.studentId,
+          ),
+        ),
+      ];
+      const ownedCount = await Student.countDocuments({
+        _id: { $in: studentIds },
+        teacherId: userId,
+      });
+      if (ownedCount !== studentIds.length) {
+        return NextResponse.json({ error: 'Invalid studentId' }, { status: 400 });
+      }
+
       const ops = (parsed.data as z.infer<typeof BulkSchema>).map((record) => ({
         updateOne: {
           filter: { teacherId: userId, studentId: record.studentId, date: record.date },
@@ -140,9 +156,22 @@ export async function POST(req: NextRequest) {
       await Attendance.bulkWrite(ops)
       return NextResponse.json({ success: true, count: ops.length })
     } else {
+      const parsedRecord = parsed.data as z.infer<typeof AttendanceSchema>;
+      const student = await Student.exists({
+        _id: parsedRecord.studentId,
+        teacherId: userId,
+      });
+      if (!student) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
       const record = await Attendance.findOneAndUpdate(
-        { teacherId: userId, studentId: (parsed.data as z.infer<typeof AttendanceSchema>).studentId, date: (parsed.data as z.infer<typeof AttendanceSchema>).date },
-        { $set: { ...(parsed.data as z.infer<typeof AttendanceSchema>), teacherId: userId } },
+        {
+          teacherId: userId,
+          studentId: parsedRecord.studentId,
+          date: parsedRecord.date,
+        },
+        { $set: { ...parsedRecord, teacherId: userId } },
         { upsert: true, new: true }
       )
       return NextResponse.json(record, { status: 201 })

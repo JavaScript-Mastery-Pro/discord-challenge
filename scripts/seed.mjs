@@ -416,7 +416,7 @@ async function main() {
     console.log(`    Announcements:    ${verifyCounts.announcements} (academic / events / admin / general)`)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
-    process.exit(0)
+    return
   } catch (err) {
     console.error('\n❌  Seed operations failed:')
     console.error(`    ${err.message ?? err}`)

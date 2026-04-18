@@ -23,7 +23,7 @@ const GradeSchema = z
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100;
-  if (pct > 90) return "A+";
+  if (pct >= 90) return "A+";
   if (pct >= 80) return "A";
   if (pct >= 70) return "B+";
   if (pct >= 60) return "B";
@@ -90,19 +90,22 @@ export async function POST(req: NextRequest) {
       );
 
     const data = parsed.data;
-    const max = data.maxMarks ?? 100;
     const term = data.term ?? "Term 1";
+    const gradeFilter = {
+      teacherId: userId,
+      studentId: data.studentId,
+      subject: data.subject,
+      term,
+    };
+    const existing = await Grade.findOne(gradeFilter).select("maxMarks").lean();
+    const max = data.maxMarks ?? existing?.maxMarks ?? 100;
 
     const grade = await Grade.findOneAndUpdate(
-      {
-        teacherId: userId,
-        studentId: data.studentId,
-        subject: data.subject,
-        term,
-      },
+      gradeFilter,
       {
         $set: {
           ...data,
+          maxMarks: max,
           term,
           teacherId: userId,
           grade: calcGrade(data.marks, max),

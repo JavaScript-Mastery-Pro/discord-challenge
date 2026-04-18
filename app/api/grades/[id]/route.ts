@@ -44,7 +44,7 @@ export async function PUT(
     const grade = await Grade.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true },
+      { new: true, runValidators: true, context: "query" },
     );
     if (!grade)
       return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -55,7 +55,7 @@ export async function PUT(
     const assignment = await Assignment.findOneAndUpdate(
       { _id: id, teacherId: userId },
       sanitizedBody,
-      { new: true },
+      { new: true, runValidators: true, context: "query" },
     );
     if (!assignment)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
