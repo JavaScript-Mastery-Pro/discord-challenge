@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     if (error instanceof Error) {
       console.error('GET /api/assignments error:', error.message)
     }
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
