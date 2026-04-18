@@ -425,7 +425,7 @@ export function AssignmentsClient() {
       ),
     );
     try {
-      await fetch(`/api/assignments/${id}`, {
+      const res = await fetch(`/api/assignments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -433,6 +433,9 @@ export function AssignmentsClient() {
           status: col === "submitted" ? "closed" : "active",
         }),
       });
+      if (!res.ok) {
+        throw new Error(`Failed to move assignment: ${res.status}`);
+      }
     } catch (error) {
       fetchAssignments();
       toast(
