@@ -89,6 +89,27 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const payload = await res.json()
+    if (typeof payload?.error === 'string') {
+      return payload.error
+    }
+    if (payload?.error?.fieldErrors) {
+      const firstError = Object.values(
+        payload.error.fieldErrors as Record<string, string[]>,
+      )[0]
+      if (firstError?.[0]) {
+        return firstError[0]
+      }
+    }
+  } catch {
+    // Ignore malformed error bodies and fall back to the generic message.
+  }
+
+  return fallback
+}
+
 // Mini attendance heatmap — last 5 weeks (35 days)
 function AttendanceHeatmap({ records }: { records: AttendanceRecord[] }) {
   const byDate = useMemo(() => {
@@ -751,7 +772,9 @@ export function StudentsClient() {
       });
       fetchStudents();
       fetchClassOptions();
-    } else toast("Failed to delete", "error");
+    } else {
+      toast(await getErrorMessage(res, "Failed to delete student"), "error");
+    }
   };
 
   const executeBulkDelete = async () => {
