@@ -1,6 +1,10 @@
+'use client'
+
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
+import Script from 'next/script'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -8,16 +12,23 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 
 export const metadata: Metadata = {
   title: 'EduDesk — Teacher Dashboard',
-  description: 'Modern college teacher dashboard for managing students, attendance, grades & more.',
+  description:
+    'Modern college teacher dashboard for managing students, attendance, grades & more.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <ClerkProvider afterSignOutUrl="/sign-in">
-      <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-        <head>
-          {/* Theme initialization script to prevent hydration flash */}
-          <script
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable}`}
+        suppressHydrationWarning
+      >
+        <body className="min-h-screen antialiased">
+          {/* Theme initialization script */}
+          <Script
+            id="theme-init"
+            strategy="beforeInteractive"
             dangerouslySetInnerHTML={{
               __html: `
                 (function() {
@@ -31,15 +42,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       document.documentElement.classList.remove('dark');
                     }
                   } catch (e) {
-                    // Silently fail if localStorage is not available
+                    // Ignore errors
                   }
                 })();
               `,
             }}
           />
-        </head>
-        <body className="min-h-screen antialiased">{children}</body>
+
+          {children}
+        </body>
       </html>
     </ClerkProvider>
-  );
+  )
 }
