@@ -7,32 +7,40 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const queryUserId = searchParams.get('userId')
 
-  let userId: string | null = queryUserId
+  // 1. Identificazione utente
+  const session = await auth()
+  const userId = queryUserId || session?.userId
+
   if (!userId) {
-    const session = await auth()
-    userId = session.userId
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     await connectDB()
+  
     let teacher = await Teacher.findOne({ clerkId: userId }).lean()
 
     if (!teacher) {
       const clerkUser = await currentUser()
-      const created = await Teacher.create({
+      
+      if (!clerkUser) {
+        return NextResponse.json({ error: 'User data not found' }, { status: 404 })
+      }
+
+      const newTeacher = await Teacher.create({
         clerkId: userId,
-        name: clerkUser?.fullName ?? '',
-        email: clerkUser?.emailAddresses[0]?.emailAddress ?? '',
+        name: `${clerkUser.firstName ?? ''} ${clerkUser.lastName ?? ''}`.trim() || 'Anonymous',
+        email: clerkUser.emailAddresses[0]?.emailAddress ?? '',
         department: '',
         subjects: [],
       })
-      teacher = created.toObject()
+      
+      teacher = JSON.parse(JSON.stringify(newTeacher))
     }
 
     return NextResponse.json(teacher)
   } catch (error) {
-    console.error('GET /api/profile error:', error instanceof Error ? error.message : error)
+    console.error('GET /api/profile error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
