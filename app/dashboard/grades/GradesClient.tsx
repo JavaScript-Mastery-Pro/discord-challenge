@@ -208,13 +208,14 @@ export function GradesClient() {
     () =>
       subjects.map((subject) => {
         const sg = gradesBySubject[subject];
-        const avg =
+        let avg =
           sg.length > 0
-            ? Math.round(
-                sg.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) /
-                  sg.length,
-              )
-            : 0;
+            ? 
+            sg.reduce((s, g) => s + pct(g.marks, g.maxMarks), 0) / sg.length
+            : 0
+
+        avg = Number(avg.toFixed(2));
+        
         return {
           subject: subject.length > 10 ? subject.slice(0, 10) + "…" : subject,
           avg,
