@@ -21,7 +21,7 @@ const GradeSchema = z.object({
 
 function calcGrade(marks: number, max: number): string {
   const pct = (marks / max) * 100
-  if (pct > 90) return 'A+'
+  if (pct >= 90) return 'A+'
   if (pct >= 80) return 'A'
   if (pct >= 70) return 'B+'
   if (pct >= 60) return 'B'
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(grades)
   } catch (error) {
     console.error('GET /api/grades error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: error instanceof Error ? error.stack : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
     const data = parsed.data
     const max = data.maxMarks!
     const term = data.term ?? 'Term 1'
-    
-    const grade = Grade.findOneAndUpdate(
+    //Fixed
+    const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
       { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
       { upsert: true, new: true }
