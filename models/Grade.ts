@@ -39,10 +39,10 @@ GradeSchema.pre("save", function () {
 });
 
 GradeSchema.pre("findOneAndUpdate", function () {
-  const update = this.getUpdate() as Record<string, unknown>;
+  const update = this.getUpdate() as any;
   if (update && typeof update === "object") {
-    const marks = update.marks;
-    const maxMarks = update.maxMarks;
+    const marks = update?.$set?.marks ?? update?.marks;
+    const maxMarks = update?.$set?.maxMarks ?? update?.maxMarks;
     if (
       marks !== undefined && typeof marks === "number" &&
       maxMarks !== undefined && typeof maxMarks === "number" &&
