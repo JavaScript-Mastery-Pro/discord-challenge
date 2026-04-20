@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
     const search = (searchParams.get("search") ?? "").replace(/\s+/g, ' ');
     const classFilter = searchParams.get("class") ?? "";
 
-    // Parse and validate pagination
     const pageStr = searchParams.get("page") ?? "1";
     const limitStr = searchParams.get("limit") ?? "20";
 
@@ -38,11 +37,10 @@ export async function GET(req: NextRequest) {
 
     if (Number.isNaN(page) || page < 1) page = 1;
     if (Number.isNaN(limit) || limit < 1) limit = 20;
-    limit = Math.min(limit, 100); // Cap at 100
+    limit = Math.min(limit, 100);
 
     const query: Record<string, unknown> = { teacherId: userId };
     if (search) {
-      // Escape regex special characters to prevent ReDoS
       const escapedSearch = escapeRegex(search);
       query.$or = [
         { name: { $regex: escapedSearch, $options: "i" } },
@@ -50,7 +48,6 @@ export async function GET(req: NextRequest) {
         { class: { $regex: escapedSearch, $options: "i" } },
       ];
     }
-    // Add class filter if provided and not 'all'
     if (classFilter && classFilter !== "all") {
       query.class = classFilter;
     }
@@ -84,17 +81,25 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB()
-    
+
     let body
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Malformed JSON' }, { status: 400 })
     }
-    
-    StudentSchema.safeParse(body)
 
-    const student = await Student.create({ ...(body as Record<string, unknown>), teacherId: userId })
+    // 1. Perform actual validation and catch errors
+    const validation = StudentSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: validation.error.format()
+      }, { status: 400 })
+    }
+
+    // 2. Only use validated data (prevents field injection)
+    const student = await Student.create({ ...validation.data, teacherId: userId })
     return NextResponse.json(student, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
