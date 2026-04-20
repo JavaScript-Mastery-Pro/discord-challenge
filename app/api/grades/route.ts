@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Grade } from '@/models/Grade'
 import { z } from 'zod'
+import mongoose from 'mongoose'
 
 const GradeSchema = z.object({
   studentId: z.string().min(1),
@@ -41,7 +42,11 @@ export async function GET(req: NextRequest) {
     const subject = searchParams.get('subject')
 
     const query: Record<string, unknown> = { teacherId: userId }
-    if (studentId) query.studentId = studentId
+
+    if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
+      query.studentId = new mongoose.Types.ObjectId(studentId)
+    }
+
     if (subject) query.subject = subject
 
     const grades = await Grade.find(query).sort({ createdAt: -1 }).lean()
@@ -58,21 +63,21 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDB()
-    
+
     let body
     try {
       body = await req.json()
     } catch {
       return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
-    
+
     const parsed = GradeSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
     const data = parsed.data
     const max = data.maxMarks!
     const term = data.term ?? 'Term 1'
-    
+
     const grade = await Grade.findOneAndUpdate(
       { teacherId: userId, studentId: data.studentId, subject: data.subject, term },
       { $set: { ...data, term, teacherId: userId, grade: calcGrade(data.marks, max) } },
