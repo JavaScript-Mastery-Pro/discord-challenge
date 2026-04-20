@@ -1,31 +1,26 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
 interface NavbarProps {
-  onMenuClick: () => void
-  title: string
+  onMenuClick: () => void;
+  title: string;
+}
+
+function getInitialDark(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored) return stored === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  } catch {
+    return false;
+  }
 }
 
 export function Navbar({ onMenuClick, title }: NavbarProps) {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState<boolean>(getInitialDark);
 
-  // Initialize theme from localStorage and system preference on client-side only
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("theme");
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      const isDark = stored ? stored === "dark" : prefersDark;
-      setDark(isDark);
-      document.documentElement.classList.toggle("dark", isDark);
-    } catch (e) {
-      // Silently fail if localStorage is not available
-    }
-  }, []);
-
-  // Sync dark class to <html> whenever dark state changes
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
@@ -33,12 +28,15 @@ export function Navbar({ onMenuClick, title }: NavbarProps) {
   const toggleDark = () => {
     const newDark = !dark;
     setDark(newDark);
-    document.documentElement.classList.toggle("dark", newDark);
-    localStorage.setItem("theme", newDark ? "dark" : "light");
+    try {
+      localStorage.setItem("theme", newDark ? "dark" : "light");
+    } catch {
+      // Silently fail if localStorage is not available
+    }
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 lg:px-6 shrink-0">
+    <header className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 lg:px-6 shrink-0 transition-colors duration-200">
       {/* Left: Hamburger + Title */}
       <div className="flex items-center gap-3">
         <button
