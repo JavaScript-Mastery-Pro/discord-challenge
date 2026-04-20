@@ -36,7 +36,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     }
 
     const assignment = await Assignment.findOneAndUpdate(
-      { _id: id },
+// FIXED
+{ _id: id, teacherId: userId },
       sanitizedBody,
       { new: true }
     )
@@ -63,7 +64,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     }
 
     await connectDB()
-    const deleted = await Assignment.findOneAndDelete({ _id: id })
+    const deleted = await Assignment.findOneAndDelete({ _id: id, teacherId: userId })
     
     if (!deleted) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
