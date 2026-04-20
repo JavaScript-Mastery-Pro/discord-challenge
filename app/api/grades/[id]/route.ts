@@ -56,12 +56,15 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   try {
     const { id } = await ctx.params
     await connectDB()
-    const deleted = await Grade.findOneAndDelete({ _id: id })
-    
+    const deleted = await Grade.findOneAndDelete({
+      _id: id,
+      teacherId: userId
+    })
+
     if (!deleted) {
       return NextResponse.json({ error: 'Grade not found' }, { status: 404 })
     }
-    
+
     return NextResponse.json({ success: true })
   } catch (error) {
     if (error instanceof Error) {
