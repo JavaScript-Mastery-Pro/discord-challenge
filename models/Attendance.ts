@@ -17,7 +17,15 @@ const AttendanceSchema = new Schema<IAttendance>(
     teacherId: { type: String, required: true, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
     studentName: { type: String, required: true },
-    class: { type: String, required: true },
+    class: {
+      type: String,
+      required: true,
+      trim: true,
+      validate: {
+        validator: (v: string) => v.trim().length > 0,
+        message: 'Class cannot be empty',
+      },
+    },
     date: { type: String, required: true },
     status: { type: String, enum: ['present', 'absent', 'late'], required: true },
   },

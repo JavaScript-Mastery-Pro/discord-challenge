@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       const clerkUser = await currentUser()
       const created = await Teacher.create({
         clerkId: userId,
-        name: clerkUser?.fullName ?? '',
+        name: clerkUser?.fullName?.trim() || clerkUser?.firstName?.trim() || "Unknown User",
         email: clerkUser?.emailAddresses[0]?.emailAddress ?? '',
         department: '',
         subjects: [],
